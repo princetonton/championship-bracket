@@ -1,0 +1,309 @@
+---
+import Base from '../layouts/Base.astro';
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+import { getGroupFixtures } from '../data/fixtures';
+import { baselineMatchResults, baselinePredictions, groupComments } from '../data/baseline';
+
+function teamName(letter, idx) {
+  return GROUPS[letter].teams[idx].name;
+}
+function fixtureScore(letter, suffix) {
+  const key = `${letter}_${suffix}`;
+  const f = baselineMatchResults[key];
+  if (!f) return null;
+  return { id: key, home: f.homeScore, away: f.awayScore, reasoning: f.reasoning };
+}
+const matchDays = ['01', '02', '03', '04', '05', '06'];
+const mdLabels = { '01': 'Matchday 1', '02': 'Matchday 1', '03': 'Matchday 2', '04': 'Matchday 2', '05': 'Matchday 3', '06': 'Matchday 3' };
+---
+
+<Base>
+  <header>
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <h1>FIFA World Cup 2026</h1>
+        <div class="subtitle">Baseline Predictions &amp; Reasoning</div>
+      </div>
+      <a href="/" class="back-link" style="color:var(--accent2);font-size:0.85rem">← Back to Tracker</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <h2 class="section-title">📋 Baseline Predictions</h2>
+      <p class="section-subtitle">
+        The baseline represents a reasoned, hand-crafted prediction for every match of the 2026 FIFA World Cup.
+        Each score is based on FIFA rankings, team form, historical performance, and tournament context.
+        Use the button below to import this baseline into the <strong>Dani</strong> profile on the main page.
+      </p>
+      <div style="margin-bottom:24px">
+        <button class="btn btn-gold" id="import-btn">📥 Import into Dani Profile</button>
+        <span id="import-msg" style="margin-left:12px;color:var(--green);font-size:0.85rem;display:none">✅ Imported! Redirecting...</span>
+      </div>
+    </section>
+
+    <!-- Predictions Overview -->
+    <section class="section">
+      <h2 class="section-title">🏆 Tournament Predictions</h2>
+      <div class="prediction-cards">
+        <div class="card prediction-card">
+          <div class="pred-label">World Champion</div>
+          <div class="pred-value gold">{baselinePredictions.champion}</div>
+          <div class="pred-reason">{baselinePredictions.championReasoning}</div>
+        </div>
+        <div class="card prediction-card">
+          <div class="pred-label">Switzerland Reaches</div>
+          <div class="pred-value">{baselinePredictions.switzerlandRound}</div>
+          <div class="pred-reason">{baselinePredictions.switzerlandReasoning}</div>
+        </div>
+        <div class="card prediction-card">
+          <div class="pred-label">Switzerland Goals</div>
+          <div class="pred-value">{baselinePredictions.switzerlandGoals}</div>
+          <div class="pred-reason">{baselinePredictions.switzerlandGoalsReasoning}</div>
+        </div>
+        <div class="card prediction-card">
+          <div class="pred-label">Top Scorer Goals</div>
+          <div class="pred-value">{baselinePredictions.topScorerGoals}</div>
+          <div class="pred-reason">{baselinePredictions.topScorerGoalsReasoning}</div>
+        </div>
+        <div class="card prediction-card">
+          <div class="pred-label">0-0 Matches</div>
+          <div class="pred-value">{baselinePredictions.zeroZeroMatches}</div>
+          <div class="pred-reason">{baselinePredictions.zeroZeroMatchesReasoning}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Group by Group -->
+    {GROUP_LETTERS.map(letter => {
+      const group = GROUPS[letter];
+      const fixtures = getGroupFixtures(letter);
+      const comment = groupComments[letter];
+      return (
+        <section class="section">
+          <h2 class="section-title">{group.name}</h2>
+          <div class="group-teams-line">
+            {group.teams.map((t, i) =>
+              `<span class="team-badge">#${i+1} ${t.name} (${t.rank})</span>`
+            ).join('')}
+          </div>
+
+          <div class="match-log">
+            {fixtures.map((f, idx) => {
+              const suffix = String(idx + 1).padStart(2, '0');
+              const score = fixtureScore(letter, suffix);
+              const mdLabel = idx % 2 === 0 ? mdLabels[suffix] : '';
+              return (
+                <div class="log-entry">
+                  {mdLabel ? `<div class="log-matchday">${mdLabel}</div>` : ''}
+                  <div class="log-scoreline">
+                    <span class="log-team home">{teamName(letter, f.homeIdx)}</span>
+                    <span class="log-score">{score?.home ?? '?'}</span>
+                    <span class="log-colon">:</span>
+                    <span class="log-score">{score?.away ?? '?'}</span>
+                    <span class="log-team away">{teamName(letter, f.awayIdx)}</span>
+                  </div>
+                  <div class="log-reason">{score?.reasoning ?? 'No reasoning available.'}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div class="group-comment">
+            <strong>Group analysis:</strong> {comment}
+          </div>
+        </section>
+      );
+    })}
+
+    <!-- Bottom Import -->
+    <section class="section" style="text-align:center;padding:24px 0">
+      <button class="btn btn-gold" id="import-btn2" style="font-size:1rem;padding:12px 32px">📥 Import into Dani Profile</button>
+      <p style="color:var(--textDim);font-size:0.8rem;margin-top:8px">
+        This will overwrite Dani's current predictions and match scores on the main page.
+      </p>
+    </section>
+  </main>
+
+  <footer style="text-align:center;padding:24px;color:var(--textDim);font-size:0.8rem">
+    FIFA World Cup 2026 — Baseline Predictions
+  </footer>
+</Base>
+
+<style is:global>
+  .back-link { text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
+
+  .group-teams-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .team-badge {
+    background: var(--surface2);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .match-log {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 16px;
+  }
+  .log-entry {
+    padding: 10px 12px;
+    border-left: 3px solid var(--border);
+    margin-bottom: 4px;
+    background: rgba(20,27,45,0.5);
+    border-radius: 0 6px 6px 0;
+    transition: border-color 0.15s;
+  }
+  .log-entry:hover { border-left-color: var(--accent2); }
+  .log-matchday {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--textDim);
+    margin-bottom: 4px;
+  }
+  .log-scoreline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .log-score {
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    min-width: 20px;
+    text-align: center;
+  }
+  .log-colon {
+    color: var(--textDim);
+    font-weight: 400;
+  }
+  .log-team { font-weight: 500; }
+  .log-team.home { text-align: right; }
+  .log-team.away { text-align: left; }
+  .log-reason {
+    font-size: 0.82rem;
+    color: var(--textDim);
+    line-height: 1.5;
+    padding-left: 4px;
+    border-left: 2px solid rgba(42,58,92,0.3);
+    padding-left: 10px;
+    margin-top: 4px;
+  }
+
+  .group-comment {
+    font-size: 0.85rem;
+    color: var(--textDim);
+    line-height: 1.6;
+    padding: 12px;
+    background: rgba(42,58,92,0.15);
+    border-radius: var(--radius);
+    margin-top: 8px;
+  }
+  .group-comment strong {
+    color: var(--accent2);
+  }
+
+  .prediction-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .prediction-card {
+    background: var(--surface);
+  }
+  .pred-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--textDim);
+    margin-bottom: 4px;
+  }
+  .pred-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .pred-value.gold { color: var(--gold); }
+  .pred-reason {
+    font-size: 0.8rem;
+    color: var(--textDim);
+    line-height: 1.5;
+  }
+</style>
+
+<script>
+  function doImport() {
+    const msg = document.getElementById('import-msg');
+    const msg2 = document.getElementById('import-msg');
+    // Build clean data (strip reasoning fields)
+    const matches = {};
+    const ids = [];
+    for (const l of 'ABCDEFGHIJKL') {
+      for (let i = 1; i <= 6; i++) {
+        ids.push(`${l}_${String(i).padStart(2, '0')}`);
+      }
+    }
+    // We need to import baselineMatchResults from the data module
+    // But since we're in a client script, we'll embed the data as JSON
+    // Actually, let's read from a script tag we'll embed
+    const dataEl = document.getElementById('baseline-data');
+    if (!dataEl) { alert('Error: baseline data not found'); return; }
+    const baseline = JSON.parse(dataEl.textContent);
+    const matchResults = {};
+    for (const [id, r] of Object.entries(baseline.matchResults)) {
+      matchResults[id] = { home: r.home, away: r.away, homeScore: r.homeScore, awayScore: r.awayScore };
+    }
+    const predictions = baseline.predictions;
+    const profileData = { matchResults, predictions };
+    try {
+      localStorage.setItem('wc2026_dani', JSON.stringify(profileData));
+      if (msg) msg.style.display = 'inline';
+      if (msg2) msg2.style.display = 'inline';
+      setTimeout(() => { window.location.href = '/?profile=dani'; }, 800);
+    } catch (e) {
+      alert('Failed to save: ' + e.message);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('import-btn')?.addEventListener('click', doImport);
+    document.getElementById('import-btn2')?.addEventListener('click', doImport);
+  });
+</script>
+
+<!-- Embedded baseline data for import -->
+<script id="baseline-data" type="application/json" set:html={JSON.stringify({
+  matchResults: Object.fromEntries(
+    Object.entries(baselineMatchResults).map(([id, r]) => [id, {
+      home: r.home, away: r.away, homeScore: r.homeScore, awayScore: r.awayScore,
+      reasoning: r.reasoning,
+    }])
+  ),
+  predictions: {
+    champion: baselinePredictions.champion,
+    championReasoning: baselinePredictions.championReasoning,
+    switzerlandRound: baselinePredictions.switzerlandRound,
+    switzerlandReasoning: baselinePredictions.switzerlandReasoning,
+    switzerlandGoals: baselinePredictions.switzerlandGoals,
+    switzerlandGoalsReasoning: baselinePredictions.switzerlandGoalsReasoning,
+    topScorerGoals: baselinePredictions.topScorerGoals,
+    topScorerGoalsReasoning: baselinePredictions.topScorerGoalsReasoning,
+    zeroZeroMatches: baselinePredictions.zeroZeroMatches,
+    zeroZeroMatchesReasoning: baselinePredictions.zeroZeroMatchesReasoning,
+  },
+})}></script>

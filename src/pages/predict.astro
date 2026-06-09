@@ -1,0 +1,121 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base>
+  <header>
+    <div class="container">
+      <h1>FIFA World Cup 2026</h1>
+      <div class="subtitle">AI Prediction Engine</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <h2 class="section-title">🤖 AI Tournament Prediction</h2>
+      <p class="section-subtitle">Generates a full tournament prediction based on FIFA rankings and historical data.</p>
+
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-gold" id="run-prediction">🚀 Generate Full Prediction</button>
+          <span id="pred-status" style="color:var(--textDim);font-size:0.85rem">Click to generate</span>
+        </div>
+      </div>
+
+      <div id="prediction-results" style="display:none">
+        <div class="card" style="background:linear-gradient(135deg,var(--gold),#b45309);color:#000;text-align:center;padding:24px;margin-bottom:24px">
+          <div style="font-size:1.2rem;font-weight:400">🏆 Predicted World Champion</div>
+          <div id="pred-champion" style="font-size:2rem;font-weight:800;margin-top:4px"></div>
+        </div>
+
+        <div class="standings-grid" id="pred-standings"></div>
+
+        <div style="margin-top:24px">
+          <h3 style="color:var(--accent2);margin-bottom:12px">Predicted Knockout Stage</h3>
+          <div id="pred-r32" style="margin-bottom:16px">
+            <h4 style="color:var(--textDim);margin-bottom:8px">Round of 32</h4>
+            <div class="bracket-grid" id="pred-r32-grid"></div>
+          </div>
+          <div id="pred-r16" style="margin-bottom:16px">
+            <h4 style="color:var(--textDim);margin-bottom:8px">Round of 16</h4>
+            <div class="bracket-grid" id="pred-r16-grid"></div>
+          </div>
+          <div id="pred-qf" style="margin-bottom:16px">
+            <h4 style="color:var(--textDim);margin-bottom:8px">Quarter-finals</h4>
+            <div class="bracket-grid" id="pred-qf-grid"></div>
+          </div>
+          <div id="pred-sf" style="margin-bottom:16px">
+            <h4 style="color:var(--textDim);margin-bottom:8px">Semi-finals</h4>
+            <div class="bracket-grid" id="pred-sf-grid"></div>
+          </div>
+          <div id="pred-final">
+            <h4 style="color:var(--textDim);margin-bottom:8px">Finals</h4>
+            <div class="bracket-grid" id="pred-final-grid"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="text-align:center;padding:24px;color:var(--textDim);font-size:0.8rem">
+    FIFA World Cup 2026 — Championship Tracker
+  </footer>
+</Base>
+
+<script>
+import { generatePredictions } from '../lib/prediction';
+
+function renderPredBracket(containerId, matches) {
+  document.getElementById(containerId).innerHTML = matches.map(m => `
+    <div class="bracket-match">
+      <div class="match-label">${m.label || m.id}</div>
+      <div class="teams">
+        <span class="team-name home">${m.homeName}</span>
+        <span style="font-weight:700;color:var(--text)">${m.homeScore ?? ''}</span>
+        <span class="colon">:</span>
+        <span style="font-weight:700;color:var(--text)">${m.awayScore ?? ''}</span>
+        <span class="team-name away">${m.awayName}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('run-prediction').addEventListener('click', () => {
+  const status = document.getElementById('pred-status');
+  status.textContent = '⏳ Generating prediction...';
+
+  setTimeout(() => {
+    const pred = generatePredictions(Date.now());
+
+    document.getElementById('pred-champion').textContent = pred.champion;
+
+    // Standings
+    const grid = document.getElementById('pred-standings');
+    grid.innerHTML = '';
+    for (const [letter, standings] of Object.entries(pred.standings)) {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `
+        <h2>Group ${letter}</h2>
+        <table class="standings-table">
+          <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
+          <tbody>
+            ${standings.map((t, i) => `<tr><td class="pos${i+1}">${i+1}</td><td class="pos${i+1}">${t.name}</td><td>${t.played}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.gd > 0 ? '+' : ''}${t.gd}</td><td class="pos${i+1}">${t.points}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+      grid.appendChild(div);
+    }
+
+    // Knockout
+    renderPredBracket('pred-r32-grid', pred.r32.map(m => ({ ...m, homeScore: pred.r32results[m.id]?.homeScore, awayScore: pred.r32results[m.id]?.awayScore })));
+    renderPredBracket('pred-r16-grid', pred.r16.map(m => ({ ...m, homeScore: pred.r16results[m.id]?.homeScore, awayScore: pred.r16results[m.id]?.awayScore })));
+    renderPredBracket('pred-qf-grid', pred.qf.map(m => ({ ...m, homeScore: pred.qfresults[m.id]?.homeScore, awayScore: pred.qfresults[m.id]?.awayScore })));
+    renderPredBracket('pred-sf-grid', pred.sf.map(m => ({ ...m, homeScore: pred.sfresults[m.id]?.homeScore, awayScore: pred.sfresults[m.id]?.awayScore })));
+    renderPredBracket('pred-final-grid', pred.finals);
+
+    document.getElementById('prediction-results').style.display = 'block';
+    status.textContent = '✅ Prediction generated!';
+  }, 100);
+});
+</script>

@@ -1,0 +1,14 @@
+{
+  "name": "soccer-champ",
+  "version": "1.0.0",
+  "description": "FIFA World Cup 2026 Championship Tracker",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^6.4.5"
+  }
+}

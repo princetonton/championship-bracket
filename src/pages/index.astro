@@ -1,0 +1,785 @@
+---
+import Base from '../layouts/Base.astro';
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+import { getGroupFixtures } from '../data/fixtures';
+
+// Build static HTML for groups
+const teamOptions = GROUP_LETTERS.flatMap(l =>
+  GROUPS[l].teams.map(t => `<option value="${t.name}">${t.name}</option>`)
+).join('');
+
+const groupPanels = GROUP_LETTERS.map(letter => {
+  const group = GROUPS[letter];
+  const fixtures = getGroupFixtures(letter);
+  const teamBadges = group.teams.map((t, i) =>
+    `<span style="background:var(--surface2);padding:2px 10px;border-radius:4px;font-size:0.8rem">#${i+1} ${t.name}</span>`
+  ).join('');
+  const matches = fixtures.map((f, idx) => {
+    const md = Math.floor(idx / 2) + 1;
+    const mdLabel = idx % 2 === 0 ? `<div class="matchday-badge">Matchday ${md}</div>` : '';
+    return `
+      <div>
+        ${mdLabel}
+        <div class="match-row" data-fid="${f.id}">
+          <span class="team home" data-side="homeName">${group.teams[f.homeIdx].name}</span>
+          <input type="number" class="score-input" data-id="${f.id}" data-side="home" min="0" max="99" value="" />
+          <span class="colon">:</span>
+          <input type="number" class="score-input" data-id="${f.id}" data-side="away" min="0" max="99" value="" />
+          <span class="team away" data-side="awayName">${group.teams[f.awayIdx].name}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="group-panel card" data-group="${letter}"><h2>Group ${letter}</h2><div class="group-teams" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${teamBadges}</div><div class="matches-container">${matches}</div></div>`;
+}).join('');
+---
+
+<Base>
+  <header>
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <h1>FIFA World Cup 2026</h1>
+        <div class="subtitle">Championship Tracker</div>
+        <div id="print-name" style="display:none;font-size:0.85rem;color:var(--textDim);margin-top:4px"></div>
+      </div>
+      <div class="profile-selector" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:4px;align-items:center">
+          <span style="color:var(--textDim);font-size:0.8rem">Profile:</span>
+          <select id="profile-select" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 12px;font-size:0.85rem">
+            <option value="dani">👤 Dani</option>
+            <option value="guest">👤 Guest</option>
+          </select>
+        </div>
+        <div id="guest-name-wrap" style="display:none;gap:4px;align-items:center">
+          <span style="color:var(--textDim);font-size:0.8rem">Name:</span>
+          <input type="text" id="guest-name" placeholder="Your name" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 12px;font-size:0.85rem;width:140px" />
+        </div>
+        <button class="btn btn-gold" id="print-btn" style="font-size:0.8rem;padding:6px 14px" title="Print or save as PDF">🖨️ Print PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- ============ PREDICTIONS ============ -->
+    <section class="section" id="predictions-section">
+      <h2 class="section-title">📋 My Predictions</h2>
+      <div class="card">
+        <h3>🇺🇸 Own Tipp</h3>
+        <div class="prediction-form" id="prediction-form">
+          <label>
+            World Champion
+            <select id="predict-champion"><option value="">— Select —</option><Fragment set:html={teamOptions} /></select>
+          </label>
+          <label>
+            Switzerland reaches
+            <select id="predict-swiss-round">
+              <option value="Group Stage">Group Stage</option>
+              <option value="Round of 32">Round of 32</option>
+              <option value="Round of 16">Round of 16</option>
+              <option value="Quarter-finals">Quarter-finals</option>
+              <option value="Semi-finals">Semi-finals</option>
+              <option value="Final">Final</option>
+              <option value="Champion">Champion</option>
+            </select>
+          </label>
+          <label>
+            Switzerland goals
+            <input type="number" id="predict-swiss-goals" min="0" max="99" value="" />
+          </label>
+          <label>
+            Top scorer goals
+            <input type="number" id="predict-topscorer" min="0" max="99" value="" />
+          </label>
+          <label>
+            0-0 matches
+            <input type="number" id="predict-zerozero" min="0" max="104" value="" />
+          </label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-gold" id="suggest-btn">🤖 Suggest from AI</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📊 Based on your tips below</h3>
+        <div class="results-list" id="results-list">
+          <div class="results-badge"><span class="results-label">World Champion</span><span class="results-value" id="results-champion">—</span></div>
+          <div class="results-badge"><span class="results-label">Switzerland</span><span class="results-value" id="results-swiss-round">—</span></div>
+          <div class="results-badge"><span class="results-label">CH Goals</span><span class="results-value" id="results-swiss-goals">—</span></div>
+          <div class="results-badge"><span class="results-label">Top Scorer</span><span class="results-value" id="results-topscorer">—</span></div>
+          <div class="results-badge"><span class="results-label">0-0</span><span class="results-value" id="results-zerozero">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ GROUP STAGE ============ -->
+    <section class="section" id="group-stage-section">
+      <div class="section-title-row">
+        <h2 class="section-title">⚽ Group Stage</h2>
+        <button class="btn btn-gold btn-sm" id="prefill-btn">📋 Prefill Scores</button>
+      </div>
+      <p class="section-subtitle">Enter the scores for all 72 group matches, then click "Generate Knockout".</p>
+
+      <div id="group-panels" class="groups-grid"><Fragment set:html={groupPanels} /></div>
+
+      <div class="round-nav">
+        <button class="btn btn-primary" id="calculate-btn">📊 Generate Knockout</button>
+        <span id="calc-status" style="color:var(--textDim);font-size:0.85rem"></span>
+      </div>
+    </section>
+
+    <!-- ============ STANDINGS ============ -->
+    <section class="section" id="standings-section" style="display:none">
+      <h2 class="section-title">📊 Group Standings</h2>
+      <div class="standings-grid" id="standings-grid"></div>
+      <div id="third-place-section" style="margin-top:16px">
+        <h3 style="color:var(--gold);margin-bottom:8px">8 Best Third-Placed Teams</h3>
+        <div id="third-place-list" class="third-place-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ KNOCKOUT ============ -->
+    <section class="section knockout-section" id="knockout-section">
+      <h2 class="section-title">🏆 Knockout Stage</h2>
+      <div id="round-r32">
+        <div class="section-title-row">
+          <h3 style="color:var(--accent2)">Round of 32</h3>
+          <button class="btn btn-gold btn-sm" id="prefill-r32">🎲 Prefill</button>
+        </div>
+        <div class="bracket-grid" id="r32-bracket"></div>
+        <div class="round-nav"><button class="btn btn-success" id="r32-next-btn">➡️ Generate Round of 16</button></div>
+      </div>
+      <div id="round-r16" style="display:none">
+        <div class="section-title-row">
+          <h3 style="color:var(--accent2)">Round of 16</h3>
+          <button class="btn btn-gold btn-sm" id="prefill-r16">🎲 Prefill</button>
+        </div>
+        <div class="bracket-grid" id="r16-bracket"></div>
+        <div class="round-nav"><button class="btn btn-success" id="r16-next-btn">➡️ Generate Quarter-finals</button></div>
+      </div>
+      <div id="round-qf" style="display:none">
+        <div class="section-title-row">
+          <h3 style="color:var(--accent2)">Quarter-finals</h3>
+          <button class="btn btn-gold btn-sm" id="prefill-qf">🎲 Prefill</button>
+        </div>
+        <div class="bracket-grid" id="qf-bracket"></div>
+        <div class="round-nav"><button class="btn btn-success" id="qf-next-btn">➡️ Generate Semi-finals</button></div>
+      </div>
+      <div id="round-sf" style="display:none">
+        <div class="section-title-row">
+          <h3 style="color:var(--accent2)">Semi-finals</h3>
+          <button class="btn btn-gold btn-sm" id="prefill-sf">🎲 Prefill</button>
+        </div>
+        <div class="bracket-grid" id="sf-bracket"></div>
+        <div class="round-nav"><button class="btn btn-success" id="sf-next-btn">➡️ Generate Final &amp; 3rd Place</button></div>
+      </div>
+      <div id="round-final" style="display:none">
+        <div class="section-title-row">
+          <h3 style="color:var(--accent2)">Finals</h3>
+          <button class="btn btn-gold btn-sm" id="prefill-final">🎲 Prefill</button>
+        </div>
+        <div class="bracket-grid" id="final-bracket"></div>
+        <div class="round-nav"></div>
+        <div id="champion-display" style="margin-top:16px"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="text-align:center;padding:24px;color:var(--textDim);font-size:0.8rem">
+    FIFA World Cup 2026 — Championship Tracker
+  </footer>
+</Base>
+
+<script>
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+import { getGroupFixtures } from '../data/fixtures';
+import { computeGroupStandings, allGroupMatchesComplete } from '../lib/standings';
+import { getBestThirdPlaced } from '../lib/qualification';
+import { generateRoundOf32, getRoundMatches } from '../lib/bracketLogic';
+import { generatePredictions, simulateMatch, getTeamPts, createRNG } from '../lib/prediction';
+import { loadProfile, saveProfile } from '../lib/storage';
+
+let currentProfile = 'guest';
+let matchResults = {};
+let currentResults = {};
+let predictionData = null;
+
+const EMPTY_PREDS = { champion: '', switzerlandRound: 'Group Stage', switzerlandGoals: '', topScorerGoals: '', zeroZeroMatches: '' };
+
+document.addEventListener('DOMContentLoaded', () => {
+  initScoreInputs();
+  initCalculate();
+  initNextRoundButtons();
+  initAiSuggest();
+  initPrefill();
+  initProfileSystem();
+  initPrintButton();
+  initGuestName();
+  initPrefillRoundButtons();
+  // Handle ?profile=dani URL param (from baseline import redirect)
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('profile') === 'dani') {
+    const select = document.getElementById('profile-select');
+    if (select) {
+      select.value = 'dani';
+      select.dispatchEvent(new Event('change'));
+    }
+  }
+});
+
+function initProfileSystem() {
+  const select = document.getElementById('profile-select');
+
+  // Load previously active profile
+  const saved = localStorage.getItem('wc2026_active_profile');
+  if (saved && ['dani','guest'].includes(saved)) {
+    select.value = saved;
+  }
+
+  select.addEventListener('change', () => {
+    switchProfile(select.value);
+  });
+
+  switchProfile(select.value);
+}
+
+function switchProfile(profileId) {
+  currentProfile = profileId;
+  localStorage.setItem('wc2026_active_profile', profileId);
+
+  const guestWrap = document.getElementById('guest-name-wrap');
+  if (profileId === 'guest') {
+    guestWrap.style.display = 'flex';
+  } else {
+    guestWrap.style.display = 'none';
+  }
+
+  let saved = loadProfile(profileId);
+
+  if (saved) {
+    matchResults = saved.matchResults || {};
+    fillPredictions(saved.predictions || {});
+    fillAllScores(matchResults);
+  } else {
+    matchResults = {};
+    fillPredictions(EMPTY_PREDS);
+    fillAllScores(matchResults);
+    saveProfile(profileId, { matchResults, predictions: EMPTY_PREDS });
+  }
+
+  // Restore guest name
+  if (profileId === 'guest') {
+    const savedName = localStorage.getItem('wc2026_guest_name');
+    if (savedName) document.getElementById('guest-name').value = savedName;
+  }
+
+  if (allGroupMatchesComplete(matchResults)) {
+    generateKnockout(matchResults);
+  } else {
+    document.getElementById('standings-section').style.display = 'none';
+    document.getElementById('knockout-section').classList.remove('visible');
+    updateCalcButton();
+  }
+}
+
+function fillPredictions(preds) {
+  document.getElementById('predict-champion').value = preds.champion || '';
+  document.getElementById('predict-swiss-round').value = preds.switzerlandRound || 'Group Stage';
+  document.getElementById('predict-swiss-goals').value = preds.switzerlandGoals ?? '';
+  document.getElementById('predict-topscorer').value = preds.topScorerGoals ?? '';
+  document.getElementById('predict-zerozero').value = preds.zeroZeroMatches ?? '';
+  updatePredictionDisplay();
+}
+
+function fillAllScores(results) {
+  for (const [id, r] of Object.entries(results)) {
+    document.querySelectorAll(`.score-input[data-id="${id}"][data-side="home"]`).forEach(el => el.value = r.homeScore ?? '');
+    document.querySelectorAll(`.score-input[data-id="${id}"][data-side="away"]`).forEach(el => el.value = r.awayScore ?? '');
+  }
+  updateCalcButton();
+}
+
+function saveCurrentProfile() {
+  const preds = readPredictions();
+  const data = { matchResults: getFullMatchResults(), predictions: preds };
+  saveProfile(currentProfile, data);
+}
+
+function initPrefill() {
+  document.getElementById('prefill-btn').addEventListener('click', () => {
+    predictionData = generatePredictions(Date.now());
+    fillAllScores(predictionData.matchResults);
+    matchResults = { ...predictionData.matchResults };
+    fillPredictions(predictionData);
+    saveCurrentProfile();
+    document.getElementById('calc-status').textContent = '✅ Scores pre-filled!';
+    if (allGroupMatchesComplete(matchResults)) {
+      generateKnockout(matchResults);
+    }
+  });
+}
+
+function readPredictions() {
+  return {
+    champion: document.getElementById('predict-champion').value,
+    switzerlandRound: document.getElementById('predict-swiss-round').value,
+    switzerlandGoals: parseInt(document.getElementById('predict-swiss-goals').value) || 0,
+    topScorerGoals: parseInt(document.getElementById('predict-topscorer').value) || 0,
+    zeroZeroMatches: parseInt(document.getElementById('predict-zerozero').value) || 0,
+  };
+}
+
+function initScoreInputs() {
+  document.querySelectorAll('.score-input').forEach(input => {
+    input.addEventListener('change', () => { updateCalcButton(); saveCurrentProfile(); updatePredictionDisplay(); });
+    input.addEventListener('input', updateCalcButton);
+  });
+  document.querySelectorAll('.prediction-form select, .prediction-form input').forEach(el => {
+    el.addEventListener('change', () => { saveCurrentProfile(); updatePredictionDisplay(); });
+    el.addEventListener('input', updatePredictionDisplay);
+  });
+  updateCalcButton();
+}
+
+function getFullMatchResults() {
+  const results = {};
+  document.querySelectorAll('.score-input').forEach(input => {
+    const id = input.dataset.id;
+    const side = input.dataset.side;
+    const val = input.value === '' ? null : parseInt(input.value, 10);
+    if (!results[id]) results[id] = {};
+    if (side === 'home') {
+      results[id].homeScore = val;
+      const letter = id[0];
+      const fixtures = getGroupFixtures(letter);
+      const fixture = fixtures.find(f => f.id === id);
+      if (fixture) {
+        results[id].home = fixture.homeIdx;
+        results[id].away = fixture.awayIdx;
+      }
+    } else {
+      results[id].awayScore = val;
+    }
+  });
+  return results;
+}
+
+function updateCalcButton() {
+  const btn = document.getElementById('calculate-btn');
+  const status = document.getElementById('calc-status');
+  const results = getFullMatchResults();
+  const complete = allGroupMatchesComplete(results);
+  btn.disabled = !complete;
+  const total = 72;
+  const filled = Object.values(results).filter(r => r.homeScore != null && r.homeScore !== '' && r.awayScore != null && r.awayScore !== '').length;
+  status.textContent = complete ? '✅ All matches complete!' : `${filled} / ${total} matches filled`;
+}
+
+function initCalculate() {
+  document.getElementById('calculate-btn').addEventListener('click', () => {
+    const results = getFullMatchResults();
+    if (!allGroupMatchesComplete(results)) {
+      document.getElementById('calc-status').textContent = '❌ Please fill in all scores first';
+      return;
+    }
+    matchResults = results;
+    saveCurrentProfile();
+    generateKnockout(results);
+  });
+}
+
+function generateKnockout(results) {
+  currentResults = results;
+
+  document.getElementById('standings-section').style.display = 'block';
+  const standingsGrid = document.getElementById('standings-grid');
+  standingsGrid.innerHTML = '';
+
+  for (const letter of GROUP_LETTERS) {
+    const standings = computeGroupStandings(letter, results);
+    const group = GROUPS[letter];
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      <h2>${group.name}</h2>
+      <table class="standings-table">
+        <thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th></tr></thead>
+        <tbody>
+          ${standings.map((t, i) => `<tr><td class="pos${i+1}">${i+1}</td><td class="pos${i+1}">${t.name}</td><td>${t.played}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.gd > 0 ? '+' : ''}${t.gd}</td><td class="pos${i+1}">${t.points}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+    standingsGrid.appendChild(div);
+  }
+
+  const { qualified, allThirdPlaced } = getBestThirdPlaced(results);
+  document.getElementById('third-place-list').innerHTML = `
+    <strong>Qualifying (top 8):</strong> ${qualified.map(t => `${t.name} (${t.group}, ${t.points} pts)`).join(' • ')}
+    <br/><strong>Eliminated:</strong> ${allThirdPlaced.slice(8).map(t => `${t.name} (${t.group}, ${t.points} pts)`).join(' • ')}
+  `;
+
+  const r32 = generateRoundOf32(results);
+  renderBracket('r32-bracket', r32);
+
+  document.getElementById('knockout-section').classList.add('visible');
+  document.getElementById('round-r32').style.display = 'block';
+  document.getElementById('round-r16').style.display = 'none';
+  document.getElementById('round-qf').style.display = 'none';
+  document.getElementById('round-sf').style.display = 'none';
+  document.getElementById('round-final').style.display = 'none';
+  updatePredictionDisplay();
+}
+
+function renderBracket(containerId, matches) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = matches.map(m => {
+    const hs = m.homeScore != null ? m.homeScore : '';
+    const as = m.awayScore != null ? m.awayScore : '';
+    return `
+      <div class="bracket-match">
+        <div class="match-label">${m.label || m.id}</div>
+        <div class="teams">
+          <span class="team-name home">${m.homeName}</span>
+          <input type="number" class="ko-score" data-round="${containerId}" data-match="${m.id}" data-side="home" min="0" max="99" value="${hs}" />
+          <span class="colon">:</span>
+          <input type="number" class="ko-score" data-round="${containerId}" data-match="${m.id}" data-side="away" min="0" max="99" value="${as}" />
+          <span class="team-name away">${m.awayName}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.ko-score').forEach(input => {
+    input.addEventListener('change', checkKoRoundComplete);
+    input.addEventListener('input', checkKoRoundComplete);
+  });
+}
+
+function getKoResults(containerId) {
+  const results = {};
+  document.querySelectorAll(`#${containerId} .ko-score`).forEach(input => {
+    const matchId = input.dataset.match;
+    const side = input.dataset.side;
+    const val = input.value === '' ? null : parseInt(input.value, 10);
+    if (!results[matchId]) results[matchId] = { homeScore: null, awayScore: null };
+    if (side === 'home') results[matchId].homeScore = val;
+    else results[matchId].awayScore = val;
+  });
+  return results;
+}
+
+function checkKoRoundComplete() {
+  document.getElementById('r32-next-btn').disabled = !isKoRoundComplete('r32-bracket');
+  document.getElementById('r16-next-btn').disabled = !isKoRoundComplete('r16-bracket');
+  document.getElementById('qf-next-btn').disabled = !isKoRoundComplete('qf-bracket');
+  document.getElementById('sf-next-btn').disabled = !isKoRoundComplete('sf-bracket');
+}
+
+function isKoRoundComplete(containerId) {
+  const inputs = document.querySelectorAll(`#${containerId} .ko-score`);
+  if (inputs.length === 0) return false;
+  for (const input of inputs) {
+    if (input.value === '' || input.value == null) return false;
+  }
+  return true;
+}
+
+function initNextRoundButtons() {
+  document.getElementById('r32-next-btn').addEventListener('click', () => {
+    generateNextRound('r32-bracket', 'R16', 'round-r16', 'r16-bracket', 'r16-next-btn');
+  });
+  document.getElementById('r16-next-btn').addEventListener('click', () => {
+    generateNextRound('r16-bracket', 'QF', 'round-qf', 'qf-bracket', 'qf-next-btn');
+  });
+  document.getElementById('qf-next-btn').addEventListener('click', () => {
+    generateNextRound('qf-bracket', 'SF', 'round-sf', 'sf-bracket', 'sf-next-btn');
+  });
+  document.getElementById('sf-next-btn').addEventListener('click', () => {
+    const prevResults = getKoResults('sf-bracket');
+    document.querySelectorAll('#sf-bracket .bracket-match').forEach(match => {
+      const matchId = match.querySelector('.ko-score')?.dataset.match;
+      if (!matchId) return;
+      const teams = match.querySelectorAll('.team-name');
+      if (prevResults[matchId]) {
+        prevResults[matchId].homeName = teams[0]?.textContent || 'TBD';
+        prevResults[matchId].awayName = teams[1]?.textContent || 'TBD';
+        prevResults[matchId].id = matchId;
+      }
+    });
+
+    const finals = getRoundMatches('FINAL', prevResults, currentResults);
+    renderBracket('final-bracket', finals);
+    document.getElementById('round-final').style.display = 'block';
+    document.getElementById('round-final').scrollIntoView({ behavior: 'smooth' });
+    currentResults = { ...currentResults, ...prevResults };
+    saveCurrentProfile();
+
+    document.querySelectorAll('#final-bracket .ko-score').forEach(input => {
+      input.addEventListener('change', showChampion);
+      input.addEventListener('input', showChampion);
+    });
+  });
+}
+
+function generateNextRound(prevContainerId, roundId, nextRoundId, nextContainerId, nextBtnId) {
+  const prevResults = getKoResults(prevContainerId);
+  document.querySelectorAll(`#${prevContainerId} .bracket-match`).forEach(match => {
+    const matchId = match.querySelector('.ko-score')?.dataset.match;
+    if (!matchId) return;
+    const teams = match.querySelectorAll('.team-name');
+    if (prevResults[matchId]) {
+      prevResults[matchId].homeName = teams[0]?.textContent || 'TBD';
+      prevResults[matchId].awayName = teams[1]?.textContent || 'TBD';
+      prevResults[matchId].id = matchId;
+    }
+  });
+
+  const nextMatches = getRoundMatches(roundId, prevResults, currentResults);
+  renderBracket(nextContainerId, nextMatches);
+
+  document.getElementById(nextRoundId).style.display = 'block';
+  document.getElementById(nextBtnId).disabled = true;
+  document.getElementById(nextRoundId).scrollIntoView({ behavior: 'smooth' });
+  currentResults = { ...currentResults, ...prevResults };
+  saveCurrentProfile();
+  updatePredictionDisplay();
+}
+
+function showChampion() {
+  const finalResults = getKoResults('final-bracket');
+  const finalMatch = finalResults['FINAL'];
+  const thirdMatch = finalResults['THIRD'];
+
+  if (finalMatch && finalMatch.homeScore != null && finalMatch.awayScore != null) {
+    const homeName = document.querySelector('#final-bracket .bracket-match:first-child .team-name.home')?.textContent || '?';
+    const awayName = document.querySelector('#final-bracket .bracket-match:first-child .team-name.away')?.textContent || '?';
+    const champion = finalMatch.homeScore > finalMatch.awayScore ? homeName : awayName;
+
+    let thirdText = '';
+    if (thirdMatch && thirdMatch.homeScore != null && thirdMatch.awayScore != null) {
+      const tHome = document.querySelectorAll('#final-bracket .bracket-match')[1]?.querySelector('.team-name.home')?.textContent || '?';
+      const tAway = document.querySelectorAll('#final-bracket .bracket-match')[1]?.querySelector('.team-name.away')?.textContent || '?';
+      const thirdPlace = thirdMatch.homeScore > thirdMatch.awayScore ? tHome : tAway;
+      thirdText = `<div style="margin-top:8px;font-size:0.9rem;color:var(--textDim)">Third place: <strong>${thirdPlace}</strong></div>`;
+    }
+
+    document.getElementById('champion-display').innerHTML = `
+      <div class="champion-box">🏆 World Champion: ${champion}</div>
+      ${thirdText}
+    `;
+    saveCurrentProfile();
+    updatePredictionDisplay();
+  }
+}
+
+function initPrintButton() {
+  document.getElementById('print-btn').addEventListener('click', async () => {
+    let name = '';
+    if (currentProfile === 'guest') {
+      name = document.getElementById('guest-name').value;
+      localStorage.setItem('wc2026_guest_name', name);
+    } else {
+      name = currentProfile === 'dani' ? 'Dani' : 'Guest';
+    }
+
+    const printName = document.getElementById('print-name');
+    if (name) {
+      printName.textContent = 'User: ' + name;
+      printName.style.display = 'block';
+    }
+
+    const btn = document.getElementById('print-btn');
+    btn.textContent = '⏳ PDF...';
+    btn.disabled = true;
+
+    document.body.classList.add('render-pdf');
+    await new Promise(r => setTimeout(r, 200));
+
+    try {
+      await html2pdf()
+        .set({
+          margin: [12, 10, 12, 10],
+          filename: `worldcup2026-${name.toLowerCase().replace(/\s+/g, '-')}.pdf`,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .from(document.body)
+        .save();
+    } catch (err) {
+      console.error('PDF error:', err);
+      alert('PDF generation failed. Try Ctrl+P instead.');
+    } finally {
+      document.body.classList.remove('render-pdf');
+      btn.textContent = '🖨️ Print PDF';
+      btn.disabled = false;
+      printName.style.display = 'none';
+    }
+  });
+}
+
+function initGuestName() {
+  const input = document.getElementById('guest-name');
+  input.addEventListener('input', () => {
+    localStorage.setItem('wc2026_guest_name', input.value);
+  });
+}
+
+function findSwissInContainer(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return null;
+  for (const match of container.querySelectorAll('.bracket-match')) {
+    const homeEl = match.querySelector('.team-name.home');
+    const awayEl = match.querySelector('.team-name.away');
+    if (!homeEl || !awayEl) continue;
+    const home = homeEl.textContent;
+    const away = awayEl.textContent;
+    if (home !== 'Switzerland' && away !== 'Switzerland') continue;
+    const hs = parseInt(match.querySelector('.ko-score[data-side="home"]')?.value);
+    const aws = parseInt(match.querySelector('.ko-score[data-side="away"]')?.value);
+    if (isNaN(hs) || isNaN(aws)) return { decided: false };
+    const isHome = home === 'Switzerland';
+    return { decided: true, won: isHome ? hs > aws : aws > hs, goals: isHome ? hs : aws };
+  }
+  return null;
+}
+
+function traceSwissRound() {
+  let r = findSwissInContainer('r32-bracket');
+  if (!r) return 'Group Stage';
+  if (!r.decided || !r.won) return 'Round of 32';
+
+  r = findSwissInContainer('r16-bracket');
+  if (!r) return 'Round of 16';
+  if (!r.decided || !r.won) return 'Round of 16';
+
+  r = findSwissInContainer('qf-bracket');
+  if (!r) return 'Quarter-finals';
+  if (!r.decided || !r.won) return 'Quarter-finals';
+
+  r = findSwissInContainer('sf-bracket');
+  if (!r) return 'Semi-finals';
+  if (!r.decided || !r.won) return 'Semi-finals';
+
+  r = findSwissInContainer('final-bracket');
+  if (!r) return 'Final';
+  if (!r.decided) return 'Final';
+  return r.won ? 'Champion' : 'Final';
+}
+
+function computeSwissGoals() {
+  const results = getFullMatchResults();
+  const standings = computeGroupStandings('B', results);
+  const swiss = standings.find(t => t.name === 'Switzerland');
+  let goals = swiss ? swiss.gf : 0;
+
+  ['r32-bracket', 'r16-bracket', 'qf-bracket', 'sf-bracket', 'final-bracket'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    c.querySelectorAll('.bracket-match').forEach(match => {
+      const home = match.querySelector('.team-name.home')?.textContent;
+      const away = match.querySelector('.team-name.away')?.textContent;
+      if (home !== 'Switzerland' && away !== 'Switzerland') return;
+      const hs = parseInt(match.querySelector('.ko-score[data-side="home"]')?.value);
+      const aws = parseInt(match.querySelector('.ko-score[data-side="away"]')?.value);
+      if (isNaN(hs) || isNaN(aws)) return;
+      goals += home === 'Switzerland' ? hs : aws;
+    });
+  });
+  return goals;
+}
+
+function countZeroZero() {
+  let count = 0;
+  const results = getFullMatchResults();
+  for (const r of Object.values(results)) {
+    if (r.homeScore != null && r.awayScore != null && r.homeScore === 0 && r.awayScore === 0) count++;
+  }
+
+  ['r32-bracket', 'r16-bracket', 'qf-bracket', 'sf-bracket', 'final-bracket'].forEach(id => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    c.querySelectorAll('.bracket-match').forEach(match => {
+      const hs = parseInt(match.querySelector('.ko-score[data-side="home"]')?.value);
+      const aws = parseInt(match.querySelector('.ko-score[data-side="away"]')?.value);
+      if (!isNaN(hs) && !isNaN(aws) && hs === 0 && aws === 0) count++;
+    });
+  });
+  return count;
+}
+
+function computeResultsPrediction() {
+  const champEl = document.querySelector('.champion-box');
+  return {
+    champion: champEl ? champEl.textContent.replace(/🏆 World Champion:\s*/, '').trim() : '—',
+    switzerlandRound: traceSwissRound(),
+    switzerlandGoals: computeSwissGoals(),
+    topScorerGoals: '—',
+    zeroZeroMatches: countZeroZero(),
+  };
+}
+
+function updatePredictionDisplay() {
+  const results = computeResultsPrediction();
+  document.getElementById('results-champion').textContent = results.champion || '—';
+  document.getElementById('results-swiss-round').textContent = results.switzerlandRound || '—';
+  document.getElementById('results-swiss-goals').textContent = (results.switzerlandGoals != null && results.switzerlandGoals !== '—') ? String(results.switzerlandGoals) : '—';
+  document.getElementById('results-topscorer').textContent = (results.topScorerGoals != null && results.topScorerGoals !== '—') ? String(results.topScorerGoals) : '—';
+  document.getElementById('results-zerozero').textContent = (results.zeroZeroMatches != null && results.zeroZeroMatches !== '—') ? String(results.zeroZeroMatches) : '—';
+}
+
+function initPrefillRoundButtons() {
+  const configs = [
+    { btnId: 'prefill-r32', containerId: 'r32-bracket' },
+    { btnId: 'prefill-r16', containerId: 'r16-bracket' },
+    { btnId: 'prefill-qf', containerId: 'qf-bracket' },
+    { btnId: 'prefill-sf', containerId: 'sf-bracket' },
+    { btnId: 'prefill-final', containerId: 'final-bracket' },
+  ];
+
+  for (const { btnId, containerId } of configs) {
+    document.getElementById(btnId).addEventListener('click', () => {
+      const seed = currentProfile === 'dani' ? 42 : Date.now();
+      const rand = createRNG(seed);
+      const container = document.getElementById(containerId);
+
+      container.querySelectorAll('.bracket-match').forEach(match => {
+        const homeName = match.querySelector('.team-name.home').textContent;
+        const awayName = match.querySelector('.team-name.away').textContent;
+        if (homeName === 'TBD' || awayName === 'TBD') return;
+        const homeTeam = { name: homeName, pts: getTeamPts(homeName) };
+        const awayTeam = { name: awayName, pts: getTeamPts(awayName) };
+        const result = simulateMatch(homeTeam, awayTeam, rand);
+
+        match.querySelector('.ko-score[data-side="home"]').value = result.homeScore;
+        match.querySelector('.ko-score[data-side="away"]').value = result.awayScore;
+      });
+
+      checkKoRoundComplete();
+      if (containerId === 'final-bracket') showChampion();
+      saveCurrentProfile();
+      updatePredictionDisplay();
+    });
+  }
+}
+
+function initAiSuggest() {
+  document.getElementById('suggest-btn').addEventListener('click', () => {
+    predictionData = generatePredictions(Date.now());
+    document.getElementById('predict-champion').value = predictionData.champion;
+    document.getElementById('predict-swiss-round').value = predictionData.switzerlandRound;
+    document.getElementById('predict-swiss-goals').value = predictionData.switzerlandGoals;
+    document.getElementById('predict-topscorer').value = predictionData.topScorerGoals;
+    document.getElementById('predict-zerozero').value = predictionData.zeroZeroMatches;
+
+    for (const [id, r] of Object.entries(predictionData.matchResults)) {
+      document.querySelectorAll(`.score-input[data-id="${id}"][data-side="home"]`).forEach(el => el.value = r.homeScore ?? '');
+      document.querySelectorAll(`.score-input[data-id="${id}"][data-side="away"]`).forEach(el => el.value = r.awayScore ?? '');
+    }
+    matchResults = predictionData.matchResults;
+    updateCalcButton();
+    updatePredictionDisplay();
+    saveCurrentProfile();
+    generateKnockout(predictionData.matchResults);
+  });
+}
+</script>
