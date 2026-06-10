@@ -136,6 +136,10 @@ const groupPanels = GROUP_LETTERS.map(letter => {
 
     </section>
 
+    <div class="round-nav" style="margin:8px 0;display:flex;justify-content:center">
+      <button class="btn btn-sm" id="refresh-standings-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">🔄 Update standings</button>
+    </div>
+
     <!-- ============ STANDINGS ============ -->
     <section class="section" id="standings-section" style="display:none">
       <h2 class="section-title">📊 Group Standings</h2>
@@ -146,7 +150,6 @@ const groupPanels = GROUP_LETTERS.map(letter => {
       </div>
 
       <div class="round-nav" style="margin-top:16px">
-        <button class="btn btn-sm" id="refresh-standings-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">🔄 Update standings</button>
         <button class="btn btn-primary" id="calculate-btn">📊 Generate Knockout</button>
         <span id="calc-status" style="color:var(--textDim);font-size:0.85rem"></span>
       </div>
