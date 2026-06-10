@@ -11,6 +11,58 @@ import '../styles/global.css';
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
+  <nav class="top-nav">
+    <div class="container nav-inner">
+      <a href="/" class="nav-logo">🏆 WC2026</a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">Tracker</a>
+        <a href="/rankings" class="nav-link">Rankings</a>
+        <a href="/baseline" class="nav-link">Baseline</a>
+
+      </div>
+    </div>
+  </nav>
   <slot />
+  <footer style="text-align:center;padding:24px;color:var(--textDim);font-size:0.8rem">
+    FIFA World Cup 2026 — Championship Tracker
+  </footer>
 </body>
 </html>
+
+<style is:global>
+  .top-nav {
+    background: linear-gradient(135deg, #0f1a2e, #1a2a4a);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-size: 1rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .nav-links {
+    display: flex;
+    gap: 4px;
+  }
+  .nav-link {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--textDim);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .nav-link:hover {
+    color: var(--text);
+    background: rgba(255,255,255,0.05);
+  }
+</style>

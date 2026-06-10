@@ -46,8 +46,8 @@ const groupPanels = GROUP_LETTERS.map(letter => {
         <div style="display:flex;gap:4px;align-items:center">
           <span style="color:var(--textDim);font-size:0.8rem">Profile:</span>
           <select id="profile-select" style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 12px;font-size:0.85rem">
-            <option value="dani">👤 Dani</option>
             <option value="guest">👤 Guest</option>
+            <option value="dani">👤 Dani</option>
           </select>
         </div>
         <div id="guest-name-wrap" style="display:none;gap:4px;align-items:center">
@@ -96,7 +96,7 @@ const groupPanels = GROUP_LETTERS.map(letter => {
           </label>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-gold" id="suggest-btn">🤖 Suggest from AI</button>
+          <button class="btn btn-gold" id="suggest-btn">🎲 Prefill (random)</button>
         </div>
       </div>
       <div class="card">
@@ -115,7 +115,9 @@ const groupPanels = GROUP_LETTERS.map(letter => {
     <section class="section" id="group-stage-section">
       <div class="section-title-row">
         <h2 class="section-title">⚽ Group Stage</h2>
-        <button class="btn btn-gold btn-sm" id="prefill-btn">📋 Prefill Scores</button>
+        <button class="btn btn-gold btn-sm" id="prefill-btn">📋 Prefill with FIFA ranking</button>
+        <button class="btn btn-sm" id="prefill-custom-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">📋 Prefill with own ranking</button>
+        <a href="/rankings" class="btn btn-sm" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border);text-decoration:none">⚙️ Set rankings</a>
       </div>
       <p class="section-subtitle">Enter the scores for all 72 group matches, then click "Generate Knockout".</p>
 
@@ -183,10 +185,6 @@ const groupPanels = GROUP_LETTERS.map(letter => {
       </div>
     </section>
   </main>
-
-  <footer style="text-align:center;padding:24px;color:var(--textDim);font-size:0.8rem">
-    FIFA World Cup 2026 — Championship Tracker
-  </footer>
 </Base>
 
 <script>
@@ -195,8 +193,8 @@ import { getGroupFixtures } from '../data/fixtures';
 import { computeGroupStandings, allGroupMatchesComplete } from '../lib/standings';
 import { getBestThirdPlaced } from '../lib/qualification';
 import { generateRoundOf32, getRoundMatches } from '../lib/bracketLogic';
-import { generatePredictions, simulateMatch, getTeamPts, createRNG } from '../lib/prediction';
-import { loadProfile, saveProfile } from '../lib/storage';
+import { generatePredictions, simulateMatch, getTeamPts, createRNG, generateDeterministicPredictions, deterministicPredictMatch, getTeamRankLookup } from '../lib/prediction';
+import { loadProfile, saveProfile, loadCustomRankings } from '../lib/storage';
 
 let currentProfile = 'guest';
 let matchResults = {};
@@ -209,8 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initScoreInputs();
   initCalculate();
   initNextRoundButtons();
-  initAiSuggest();
+  initRandomPrefill();
   initPrefill();
+  initCustomPrefill();
   initProfileSystem();
   initPrintButton();
   initGuestName();
@@ -229,10 +228,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function initProfileSystem() {
   const select = document.getElementById('profile-select');
 
-  // Load previously active profile
+  // Load previously active profile, default to guest
   const saved = localStorage.getItem('wc2026_active_profile');
   if (saved && ['dani','guest'].includes(saved)) {
     select.value = saved;
+  } else {
+    select.value = 'guest';
   }
 
   select.addEventListener('change', () => {
@@ -306,16 +307,42 @@ function saveCurrentProfile() {
 
 function initPrefill() {
   document.getElementById('prefill-btn').addEventListener('click', () => {
-    predictionData = generatePredictions(Date.now());
+    predictionData = generateDeterministicPredictions('fifa');
     fillAllScores(predictionData.matchResults);
     matchResults = { ...predictionData.matchResults };
     fillPredictions(predictionData);
     saveCurrentProfile();
-    document.getElementById('calc-status').textContent = '✅ Scores pre-filled!';
+    document.getElementById('calc-status').textContent = '✅ Prefilled with FIFA ranking!';
     if (allGroupMatchesComplete(matchResults)) {
       generateKnockout(matchResults);
     }
   });
+}
+
+function initCustomPrefill() {
+  const btn = document.getElementById('prefill-custom-btn');
+  const checkCustom = () => {
+    const saved = loadCustomRankings();
+    btn.disabled = !saved;
+  };
+  checkCustom();
+  btn.addEventListener('click', () => {
+    const saved = loadCustomRankings();
+    if (!saved) {
+      window.location.href = '/rankings';
+      return;
+    }
+    predictionData = generateDeterministicPredictions('custom', saved);
+    fillAllScores(predictionData.matchResults);
+    matchResults = { ...predictionData.matchResults };
+    fillPredictions(predictionData);
+    saveCurrentProfile();
+    document.getElementById('calc-status').textContent = '✅ Prefilled with own ranking!';
+    if (allGroupMatchesComplete(matchResults)) {
+      generateKnockout(matchResults);
+    }
+  });
+  window.addEventListener('storage', checkCustom);
 }
 
 function readPredictions() {
@@ -736,19 +763,22 @@ function initPrefillRoundButtons() {
     { btnId: 'prefill-final', containerId: 'final-bracket' },
   ];
 
+  function getRankLookup() {
+    const custom = loadCustomRankings();
+    if (custom) return getTeamRankLookup('custom', custom);
+    return getTeamRankLookup('fifa');
+  }
+
   for (const { btnId, containerId } of configs) {
     document.getElementById(btnId).addEventListener('click', () => {
-      const seed = currentProfile === 'dani' ? 42 : Date.now();
-      const rand = createRNG(seed);
+      const rankLookup = getRankLookup();
       const container = document.getElementById(containerId);
 
       container.querySelectorAll('.bracket-match').forEach(match => {
         const homeName = match.querySelector('.team-name.home').textContent;
         const awayName = match.querySelector('.team-name.away').textContent;
         if (homeName === 'TBD' || awayName === 'TBD') return;
-        const homeTeam = { name: homeName, pts: getTeamPts(homeName) };
-        const awayTeam = { name: awayName, pts: getTeamPts(awayName) };
-        const result = simulateMatch(homeTeam, awayTeam, rand);
+        const result = deterministicPredictMatch(rankLookup[homeName] || 99, rankLookup[awayName] || 99);
 
         match.querySelector('.ko-score[data-side="home"]').value = result.homeScore;
         match.querySelector('.ko-score[data-side="away"]').value = result.awayScore;
@@ -762,7 +792,7 @@ function initPrefillRoundButtons() {
   }
 }
 
-function initAiSuggest() {
+function initRandomPrefill() {
   document.getElementById('suggest-btn').addEventListener('click', () => {
     predictionData = generatePredictions(Date.now());
     document.getElementById('predict-champion').value = predictionData.champion;

@@ -1,4 +1,4 @@
-import{g as i}from"./prediction.1VnkH67I.js";function s(r,e){document.getElementById(r).innerHTML=e.map(d=>`
+import{i}from"./prediction.3rXkfuoN.js";function s(r,e){document.getElementById(r).innerHTML=e.map(d=>`
     <div class="bracket-match">
       <div class="match-label">${d.label||d.id}</div>
       <div class="teams">

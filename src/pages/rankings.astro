@@ -1,0 +1,209 @@
+---
+import Base from '../layouts/Base.astro';
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+
+const allTeams = GROUP_LETTERS.flatMap(l =>
+  GROUPS[l].teams.map(t => ({
+    ...t,
+    group: l,
+    groupName: GROUPS[l].name,
+  }))
+).sort((a, b) => a.rank - b.rank);
+---
+
+<Base>
+  <main class="container" style="padding-top:24px">
+    <section class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <h2 class="section-title" style="margin-bottom:4px">Custom Rankings</h2>
+          <p class="section-subtitle" style="margin-bottom:0">
+            Set your own <strong>rankings</strong> for all 48 World Cup teams. Save them, then go to the
+            <a href="/" style="color:var(--accent2)">Tracker</a> and click
+            <strong>"Prefill with own ranking"</strong> to generate match scores based on your values.
+          </p>
+          <p style="color:var(--textDim);font-size:0.8rem;margin-top:6px">
+            The better-ranked team wins 2:1 (or 3:1 if the rank gap is 10+). Equal ranks = 1-1 draw.
+          </p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="save-btn">💾 Save Rankings</button>
+          <button class="btn" id="reset-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">↺ Reset to Official</button>
+        </div>
+      </div>
+      <span id="status-msg" style="color:var(--green);font-size:0.85rem;display:none;margin-bottom:12px">✅ Saved!</span>
+
+      <div class="card" style="overflow-x:auto;padding:0">
+        <table class="rankings-table">
+          <thead>
+            <tr>
+              <th>FIFA Rank</th>
+              <th>Team</th>
+              <th>Group</th>
+              <th>Official Rank</th>
+              <th>Official Pts</th>
+              <th>My Rank</th>
+              <th>My Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allTeams.map((t, i) => (
+              <tr>
+                <td class="num">{i + 1}</td>
+                <td class="team-cell">{t.name}</td>
+                <td class="group-cell">{t.group}</td>
+                <td class="num official">{t.rank}</td>
+                <td class="num official">{t.pts.toFixed(2)}</td>
+                <td><input type="number" class="rank-input" data-team={t.name} data-field="rank" min="1" max="211" value={t.rank} /></td>
+                <td><input type="number" class="pts-input" data-team={t.name} data-field="pts" min="0" max="2500" step="0.01" value={t.pts.toFixed(2)} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:16px;font-size:0.8rem;color:var(--textDim)">
+        FIFA rankings as of April 2026. <a href="https://inside.fifa.com/fifa-world-ranking/men" target="_blank" style="color:var(--accent2)">View official →</a>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<style is:global>
+  .rankings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .rankings-table th {
+    text-align: left;
+    padding: 10px 8px;
+    color: var(--textDim);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+  }
+  .rankings-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(42,58,92,0.3);
+  }
+  .rankings-table tr:hover td {
+    background: rgba(59,130,246,0.05);
+  }
+  .rankings-table .num {
+    font-family: monospace;
+    text-align: center;
+    width: 50px;
+  }
+  .rankings-table .official {
+    color: var(--textDim);
+  }
+  .rankings-table .team-cell {
+    font-weight: 600;
+  }
+  .rankings-table .group-cell {
+    color: var(--textDim);
+    font-size: 0.75rem;
+    width: 40px;
+  }
+  .rankings-table input {
+    width: 72px;
+    padding: 4px 6px;
+    text-align: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-family: monospace;
+  }
+  .rankings-table input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+  }
+  .rankings-table input.changed {
+    border-color: var(--gold);
+    background: rgba(245,158,11,0.1);
+  }
+</style>
+
+<script>
+import { loadCustomRankings, saveCustomRankings } from '../lib/storage';
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inputs = document.querySelectorAll('.rank-input, .pts-input');
+  const saveBtn = document.getElementById('save-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const statusMsg = document.getElementById('status-msg');
+
+  function loadSaved() {
+    const saved = loadCustomRankings();
+    if (!saved) return;
+    for (const input of inputs) {
+      const team = input.dataset.team;
+      const field = input.dataset.field;
+      if (saved[team] && saved[team][field] != null) {
+        const val = field === 'pts' ? Number(saved[team][field]).toFixed(2) : saved[team][field];
+        if (input.value !== val) {
+          input.value = val;
+          input.classList.add('changed');
+        }
+      }
+    }
+  }
+
+  function collectRankings() {
+    const data = {};
+    for (const input of inputs) {
+      const team = input.dataset.team;
+      const field = input.dataset.field;
+      if (!data[team]) data[team] = {};
+      data[team][field] = field === 'pts' ? parseFloat(input.value) || 0 : parseInt(input.value, 10) || 1;
+    }
+    return data;
+  }
+
+  function markChanges() {
+    const saved = loadCustomRankings();
+    for (const input of inputs) {
+      const team = input.dataset.team;
+      const field = input.dataset.field;
+      const official = input.defaultValue;
+      const current = input.value;
+      input.classList.toggle('changed', current !== official);
+    }
+  }
+
+  for (const input of inputs) {
+    input.addEventListener('input', markChanges);
+  }
+
+  saveBtn.addEventListener('click', () => {
+    const data = collectRankings();
+    saveCustomRankings(data);
+    for (const input of inputs) input.classList.remove('changed');
+    statusMsg.style.display = 'inline';
+    setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    localStorage.removeItem('wc2026_custom_rankings');
+    for (const input of inputs) {
+      input.value = input.defaultValue;
+      input.classList.remove('changed');
+    }
+    statusMsg.textContent = '↺ Reset to official rankings';
+    statusMsg.style.display = 'inline';
+    setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
+  });
+
+  loadSaved();
+  markChanges();
+});
+</script>
