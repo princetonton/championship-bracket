@@ -375,7 +375,7 @@ body.render-pdf .champion-box { background: #f5f5f5 !important; border: 2px soli
 body.render-pdf .card { border: 1px solid #ccc !important; page-break-inside: avoid; }
 body.render-pdf .groups-grid { grid-template-columns: 1fr 1fr; gap: 12px; page-break-inside: avoid; }
 body.render-pdf .standings-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-body.render-pdf #standings-grid-2 { page-break-before: always; }
+body.render-pdf .pdf-page-break-before { page-break-before: always !important; }
 body.render-pdf #knockout-section { page-break-before: always; }
 body.render-pdf .bracket-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
 body.render-pdf .section { margin-bottom: 16px; }
@@ -449,7 +449,7 @@ body.render-pdf .match-day-badge { display: none !important; }
 
   .groups-grid { grid-template-columns: 1fr 1fr; gap: 12px; page-break-inside: avoid; }
   .standings-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-  #standings-grid-2 { page-break-before: always; }
+  .pdf-page-break-before { page-break-before: always !important; }
   #knockout-section { page-break-before: always; }
   .bracket-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
 
