@@ -151,7 +151,8 @@ const groupPanelsHtml = groupChunks.join('');
     <!-- ============ STANDINGS ============ -->
     <section class="section" id="standings-section" style="display:none">
       <h2 class="section-title">📊 Group Standings</h2>
-      <div class="standings-grid" id="standings-grid"></div>
+      <div class="standings-grid" id="standings-grid-1"></div>
+      <div class="standings-grid" id="standings-grid-2"></div>
       <div id="third-place-section" style="margin-top:16px">
         <h3 style="color:var(--gold);margin-bottom:8px">8 Best Third-Placed Teams</h3>
         <div id="third-place-list" class="third-place-list"></div>
@@ -483,10 +484,12 @@ function generateKnockout(results) {
   currentResults = results;
 
   document.getElementById('standings-section').style.display = 'block';
-  const standingsGrid = document.getElementById('standings-grid');
-  standingsGrid.innerHTML = '';
+  const standingsGrid1 = document.getElementById('standings-grid-1');
+  const standingsGrid2 = document.getElementById('standings-grid-2');
+  standingsGrid1.innerHTML = '';
+  standingsGrid2.innerHTML = '';
 
-  for (const letter of GROUP_LETTERS) {
+  GROUP_LETTERS.forEach((letter, i) => {
     const standings = computeGroupStandings(letter, results);
     const group = GROUPS[letter];
     const div = document.createElement('div');
@@ -500,8 +503,8 @@ function generateKnockout(results) {
         </tbody>
       </table>
     `;
-    standingsGrid.appendChild(div);
-  }
+    (i < 8 ? standingsGrid1 : standingsGrid2).appendChild(div);
+  });
 
   const { qualified, allThirdPlaced } = getBestThirdPlaced(results);
   document.getElementById('third-place-list').innerHTML = `
