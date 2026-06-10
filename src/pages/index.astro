@@ -121,14 +121,10 @@ const groupPanels = GROUP_LETTERS.map(letter => {
         <button class="btn btn-sm" id="prefill-custom-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">📋 Prefill with own ranking</button>
         <a href="/rankings" class="btn btn-sm" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border);text-decoration:none">⚙️ Set rankings</a>
       </div>
-      <p class="section-subtitle">Enter the scores for all 72 group matches, then click "Generate Knockout".</p>
+      <p class="section-subtitle">Enter the scores for all 72 group matches.</p>
 
       <div id="group-panels" class="groups-grid"><Fragment set:html={groupPanels} /></div>
 
-      <div class="round-nav">
-        <button class="btn btn-primary" id="calculate-btn">📊 Generate Knockout</button>
-        <span id="calc-status" style="color:var(--textDim);font-size:0.85rem"></span>
-      </div>
     </section>
 
     <!-- ============ STANDINGS ============ -->
@@ -138,6 +134,11 @@ const groupPanels = GROUP_LETTERS.map(letter => {
       <div id="third-place-section" style="margin-top:16px">
         <h3 style="color:var(--gold);margin-bottom:8px">8 Best Third-Placed Teams</h3>
         <div id="third-place-list" class="third-place-list"></div>
+      </div>
+
+      <div class="round-nav" style="margin-top:16px">
+        <button class="btn btn-primary" id="calculate-btn">📊 Generate Knockout</button>
+        <span id="calc-status" style="color:var(--textDim);font-size:0.85rem"></span>
       </div>
     </section>
 
