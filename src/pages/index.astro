@@ -33,7 +33,14 @@ const groupPanels = GROUP_LETTERS.map(letter => {
     `;
   }).join('');
   return `<div class="group-panel card" data-group="${letter}"><h2>Group ${letter}</h2><div class="group-teams" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${teamBadges}</div><div class="matches-container">${matches}</div></div>`;
-}).join('');
+});
+
+// Chunk into groups of 4 for PDF page breaks
+const groupChunks = [];
+for (let i = 0; i < groupPanels.length; i += 4) {
+  groupChunks.push(`<div class="groups-grid">${groupPanels.slice(i, i + 4).join('')}</div>`);
+}
+const groupPanelsHtml = groupChunks.join('');
 ---
 
 <Base>
@@ -133,7 +140,7 @@ const groupPanels = GROUP_LETTERS.map(letter => {
         Same seed = same results every time. Leave empty for the original 2-1 / 3-1 deterministic scores by rank difference.
       </p>
 
-      <div id="group-panels" class="groups-grid"><Fragment set:html={groupPanels} /></div>
+      <div id="group-panels"><Fragment set:html={groupPanelsHtml} /></div>
 
     </section>
 
@@ -687,6 +694,7 @@ function initPrintButton() {
           image: { type: 'jpeg', quality: 0.95 },
           html2canvas: { scale: 2, useCORS: true, logging: false },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css'] },
         })
         .from(document.body)
         .save();

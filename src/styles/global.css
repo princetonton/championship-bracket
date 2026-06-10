@@ -373,7 +373,7 @@ body.render-pdf .bracket-match {
 }
 body.render-pdf .champion-box { background: #f5f5f5 !important; border: 2px solid #b45309 !important; color: #000 !important; }
 body.render-pdf .card { border: 1px solid #ccc !important; page-break-inside: avoid; }
-body.render-pdf .groups-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+body.render-pdf .groups-grid { grid-template-columns: 1fr 1fr; gap: 12px; page-break-inside: avoid; }
 body.render-pdf .standings-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
 body.render-pdf .bracket-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
 body.render-pdf .section { margin-bottom: 16px; }
@@ -445,7 +445,7 @@ body.render-pdf .match-day-badge { display: none !important; }
 
   .card { border: 1px solid #ccc !important; page-break-inside: avoid; }
 
-  .groups-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .groups-grid { grid-template-columns: 1fr 1fr; gap: 12px; page-break-inside: avoid; }
   .standings-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .bracket-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
 
