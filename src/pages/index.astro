@@ -127,14 +127,10 @@ const groupPanels = GROUP_LETTERS.map(letter => {
         <span style="font-size:0.85rem;color:var(--textDim)">Seed:</span>
         <input type="number" id="seed-input" placeholder="(empty = deterministic)" style="width:130px;background:var(--surface1);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 8px;font-size:0.85rem" />
         <button class="btn btn-sm" id="seed-random-btn" style="font-size:0.8rem">🎲 Random</button>
-        <label style="font-size:0.85rem;display:flex;align-items:center;gap:4px;cursor:pointer">
-          <input type="checkbox" id="shuffle-ranks" /> Shuffle ranks (±15%)
-        </label>
       </div>
       <p style="font-size:0.78rem;color:var(--textDim);margin:-2px 0 12px 4px;line-height:1.4">
-        A <strong>seed</strong> makes prefill results <strong>reproducible</strong> — same seed = same realistic scores every time.
-        Leave empty for the original deterministic prefill (2-1 / 3-1 by rank).
-        <strong>Shuffle ranks</strong> slightly perturbs each team's FIFA strength by ±15% — different every seed, adding variety.
+        A <strong>seed</strong> adds subtle ±1 goal variation to the deterministic prefill scores.
+        Same seed = same results every time. Leave empty for the original 2-1 / 3-1 by rank.
       </p>
 
       <div id="group-panels" class="groups-grid"><Fragment set:html={groupPanels} /></div>
@@ -336,10 +332,9 @@ function getSeedValue() {
 function initPrefill() {
   document.getElementById('prefill-btn').addEventListener('click', () => {
     const seed = getSeedValue();
-    const shuffle = document.getElementById('shuffle-ranks').checked;
 
     if (seed !== null) {
-      predictionData = generateSeededPredictions(seed, 'fifa', null, shuffle);
+      predictionData = generateSeededPredictions(seed, 'fifa');
     } else {
       predictionData = generateDeterministicPredictions('fifa');
     }
@@ -375,10 +370,9 @@ function initCustomPrefill() {
     }
 
     const seed = getSeedValue();
-    const shuffle = document.getElementById('shuffle-ranks').checked;
 
     if (seed !== null) {
-      predictionData = generateSeededPredictions(seed, 'custom', saved, shuffle);
+      predictionData = generateSeededPredictions(seed, 'custom', saved);
     } else {
       predictionData = generateDeterministicPredictions('custom', saved);
     }

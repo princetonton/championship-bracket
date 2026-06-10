@@ -346,14 +346,24 @@ function advanceSwiss(matches, results, currentRound, nextRound, goalsSoFar) {
   };
 }
 
-export function deterministicPredictMatch(rankHome, rankAway) {
-  if (rankHome === rankAway) return { homeScore: 1, awayScore: 1 };
-  if (rankHome < rankAway) {
+export function deterministicPredictMatch(rankHome, rankAway, rand) {
+  let result;
+  if (rankHome === rankAway) {
+    result = { homeScore: 1, awayScore: 1 };
+  } else if (rankHome < rankAway) {
     const diff = rankAway - rankHome;
-    return { homeScore: diff >= 10 ? 3 : 2, awayScore: 1 };
+    result = { homeScore: diff >= 10 ? 3 : 2, awayScore: 1 };
+  } else {
+    const diff = rankHome - rankAway;
+    result = { homeScore: 1, awayScore: diff >= 10 ? 3 : 2 };
   }
-  const diff = rankHome - rankAway;
-  return { homeScore: 1, awayScore: diff >= 10 ? 3 : 2 };
+  if (rand) {
+    const hn = Math.floor(rand() * 3) - 1;
+    const an = Math.floor(rand() * 3) - 1;
+    result.homeScore = Math.max(0, Math.min(5, result.homeScore + hn));
+    result.awayScore = Math.max(0, Math.min(5, result.awayScore + an));
+  }
+  return result;
 }
 
 export function getTeamRankLookup(rankSource, customRankings) {
@@ -370,7 +380,7 @@ export function getTeamRankLookup(rankSource, customRankings) {
   return lookup;
 }
 
-export function generateDeterministicPredictions(rankSource = 'fifa', customRanks = null) {
+export function generateDeterministicPredictions(rankSource = 'fifa', customRanks = null, rand) {
   const rankLookup = getTeamRankLookup(rankSource, customRanks);
   const matchResults = {};
 
@@ -380,7 +390,7 @@ export function generateDeterministicPredictions(rankSource = 'fifa', customRank
     for (const f of fixtures) {
       const homeTeam = group.teams[f.homeIdx];
       const awayTeam = group.teams[f.awayIdx];
-      const result = deterministicPredictMatch(rankLookup[homeTeam.name], rankLookup[awayTeam.name]);
+      const result = deterministicPredictMatch(rankLookup[homeTeam.name], rankLookup[awayTeam.name], rand);
       matchResults[f.id] = {
         home: f.homeIdx, away: f.awayIdx,
         homeScore: result.homeScore, awayScore: result.awayScore,
@@ -401,27 +411,27 @@ export function generateDeterministicPredictions(rankSource = 'fifa', customRank
 
   const r32results = {};
   for (const m of r32) {
-    const result = deterministicPredictMatch(rankLookup[m.homeName] || 99, rankLookup[m.awayName] || 99);
+    const result = deterministicPredictMatch(rankLookup[m.homeName] || 99, rankLookup[m.awayName] || 99, rand);
     r32results[m.id] = { ...m, homeScore: result.homeScore, awayScore: result.awayScore };
   }
   Object.assign(prevResults, r32results);
   Object.assign(totalResults, r32results);
 
-  const { matches: r16, results: r16results } = deterministicNextRound('R16', prevResults, rankLookup);
+  const { matches: r16, results: r16results } = deterministicNextRound('R16', prevResults, rankLookup, rand);
   Object.assign(prevResults, r16results);
   Object.assign(totalResults, r16results);
 
-  const { matches: qf, results: qfresults } = deterministicNextRound('QF', prevResults, rankLookup);
+  const { matches: qf, results: qfresults } = deterministicNextRound('QF', prevResults, rankLookup, rand);
   Object.assign(prevResults, qfresults);
   Object.assign(totalResults, qfresults);
 
-  const { matches: sf, results: sfresults } = deterministicNextRound('SF', prevResults, rankLookup);
+  const { matches: sf, results: sfresults } = deterministicNextRound('SF', prevResults, rankLookup, rand);
   Object.assign(prevResults, sfresults);
   Object.assign(totalResults, sfresults);
 
-  const { matches: finals } = deterministicNextRound('FINAL', prevResults, rankLookup);
+  const { matches: finals } = deterministicNextRound('FINAL', prevResults, rankLookup, rand);
   const finalsWithScores = finals.map(m => {
-    const result = deterministicPredictMatch(rankLookup[m.homeName] || 99, rankLookup[m.awayName] || 99);
+    const result = deterministicPredictMatch(rankLookup[m.homeName] || 99, rankLookup[m.awayName] || 99, rand);
     return { ...m, homeScore: result.homeScore, awayScore: result.awayScore };
   });
   Object.assign(totalResults, Object.fromEntries(finalsWithScores.map(m => [m.id, m])));
@@ -494,7 +504,7 @@ export function generateDeterministicPredictions(rankSource = 'fifa', customRank
   };
 }
 
-function deterministicNextRound(roundId, prevResults, rankLookup) {
+function deterministicNextRound(roundId, prevResults, rankLookup, rand) {
   let matchups;
   if (roundId === 'R16') matchups = R16_MATCHUPS;
   else if (roundId === 'QF') matchups = QF_MATCHUPS;
@@ -527,156 +537,13 @@ function deterministicNextRound(roundId, prevResults, rankLookup) {
 
   const results = {};
   for (const m of matches) {
-    const result = deterministicPredictMatch(rankLookup[m.homeName] || 99, rankLookup[m.awayName] || 99);
+    const result = deterministicPredictMatch(rankLookup[m.homeName] || 99, rankLookup[m.awayName] || 99, rand);
     results[m.id] = { ...m, homeScore: result.homeScore, awayScore: result.awayScore };
   }
 
   return { matches, results };
 }
 
-export function generateSeededPredictions(seed, rankSource = 'fifa', customRanks = null, shuffleRanks = false) {
-  const rand = createRNG(seed);
-  const rankLookup = getTeamRankLookup(rankSource, customRanks);
-
-  const ptsLookup = {};
-  for (const l of GROUP_LETTERS) {
-    for (const t of GROUPS[l].teams) {
-      let basePts = t.pts;
-      if (rankSource === 'custom' && customRanks?.[t.name]?.rank != null) {
-        basePts = 1900 - customRanks[t.name].rank * 5;
-      }
-      if (shuffleRanks) {
-        const teamSeed = (seed * 31 + t.name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) >>> 0;
-        const teamRand = createRNG(teamSeed);
-        basePts = Math.round(basePts * (0.85 + teamRand() * 0.3));
-      }
-      ptsLookup[t.name] = Math.max(1200, Math.min(2000, basePts));
-    }
-  }
-
-  function predictMatch(homeName, awayName) {
-    return simulateMatch(
-      { name: homeName, pts: ptsLookup[homeName] || 1400 },
-      { name: awayName, pts: ptsLookup[awayName] || 1400 },
-      rand
-    );
-  }
-
-  const matchResults = {};
-  for (const letter of GROUP_LETTERS) {
-    const group = GROUPS[letter];
-    const fixtures = getGroupFixtures(letter);
-    for (const f of fixtures) {
-      const homeTeam = group.teams[f.homeIdx];
-      const awayTeam = group.teams[f.awayIdx];
-      const result = predictMatch(homeTeam.name, awayTeam.name);
-      matchResults[f.id] = {
-        home: f.homeIdx, away: f.awayIdx,
-        homeScore: result.homeScore, awayScore: result.awayScore,
-      };
-    }
-  }
-
-  const standings = {};
-  for (const letter of GROUP_LETTERS) {
-    standings[letter] = computeGroupStandings(letter, matchResults);
-  }
-
-  const { qualifyingGroups, qualified: qualifiedThird } = getBestThirdPlaced(matchResults);
-  const r32 = generateRoundOf32(matchResults);
-
-  const r32results = {};
-  for (const m of r32) {
-    const result = predictMatch(m.homeName, m.awayName);
-    r32results[m.id] = { ...m, homeScore: result.homeScore, awayScore: result.awayScore };
-  }
-
-  const prevResults = { ...matchResults, ...r32results };
-  let totalResults = { ...matchResults, ...r32results };
-
-  const { matches: r16, results: r16results } = simulateNextRound('R16', prevResults, rand, ptsLookup);
-  Object.assign(prevResults, r16results);
-  Object.assign(totalResults, r16results);
-
-  const { matches: qf, results: qfresults } = simulateNextRound('QF', prevResults, rand, ptsLookup);
-  Object.assign(prevResults, qfresults);
-  Object.assign(totalResults, qfresults);
-
-  const { matches: sf, results: sfresults } = simulateNextRound('SF', prevResults, rand, ptsLookup);
-  Object.assign(prevResults, sfresults);
-  Object.assign(totalResults, sfresults);
-
-  const { matches: finals } = simulateNextRound('FINAL', prevResults, rand, ptsLookup);
-  const finalsWithScores = finals.map(m => {
-    const result = predictMatch(m.homeName, m.awayName);
-    return { ...m, homeScore: result.homeScore, awayScore: result.awayScore };
-  });
-  Object.assign(totalResults, Object.fromEntries(finalsWithScores.map(m => [m.id, m])));
-
-  const champion = finalsWithScores.find(m => m.label === 'Final');
-  const championName = champion
-    ? (champion.homeScore > champion.awayScore ? champion.homeName : champion.awayName)
-    : 'TBD';
-
-  let swissRound = 'Group Stage';
-  let swissGoals = 0;
-  const swissGroup = 'B';
-  const swissStanding = standings[swissGroup].find(t => t.name === 'Switzerland');
-  if (swissStanding) {
-    swissGoals += swissStanding.gf;
-    const swissPos = standings[swissGroup].indexOf(swissStanding);
-    if (swissPos <= 1 || qualifiedThird.find(t => t.name === 'Switzerland')) {
-      swissRound = advanceSwiss(r32, r32results, 'Round of 32', 'Round of 16', swissGoals);
-      swissGoals = swissRound.goals;
-      if (swissRound.nextRound === 'Round of 16') {
-        swissRound = advanceSwiss(r16, r16results, 'Round of 16', 'Quarter-finals', swissGoals);
-        swissGoals = swissRound.goals;
-        if (swissRound.nextRound === 'Quarter-finals') {
-          swissRound = advanceSwiss(qf, qfresults, 'Quarter-finals', 'Semi-finals', swissGoals);
-          swissGoals = swissRound.goals;
-          if (swissRound.nextRound === 'Semi-finals') {
-            swissRound = advanceSwiss(sf, sfresults, 'Semi-finals', 'Final', swissGoals);
-            swissGoals = swissRound.goals;
-            if (swissRound.nextRound === 'Final') {
-              const swissFinal = finalsWithScores.find(m =>
-                (m.homeName === 'Switzerland' || m.awayName === 'Switzerland') && m.label === 'Final'
-              );
-              if (swissFinal) {
-                const g = swissFinal.homeName === 'Switzerland' ? swissFinal.homeScore : swissFinal.awayScore;
-                swissGoals += g;
-                const won = (swissFinal.homeName === 'Switzerland' && swissFinal.homeScore > swissFinal.awayScore) ||
-                            (swissFinal.awayName === 'Switzerland' && swissFinal.awayScore > swissFinal.homeScore);
-                swissRound = { nextRound: won ? 'Champion' : 'Final', goals: swissGoals };
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  let zeroZero = 0;
-  let totalGoals = 0;
-  for (const key in totalResults) {
-    const r = totalResults[key];
-    if (r.homeScore === 0 && r.awayScore === 0) zeroZero++;
-    totalGoals += (r.homeScore || 0) + (r.awayScore || 0);
-  }
-
-  const topScorerGoals = Math.min(10, Math.max(3, Math.round(totalGoals * 0.025 + 1)));
-
-  return {
-    champion: championName,
-    switzerlandRound: swissRound.nextRound || 'Group Stage',
-    switzerlandGoals: swissGoals,
-    topScorerGoals,
-    zeroZeroMatches: zeroZero,
-    matchResults,
-    standings,
-    r32, r32results,
-    r16, r16results,
-    qf, qfresults,
-    sf, sfresults,
-    finals: finalsWithScores,
-  };
+export function generateSeededPredictions(seed, rankSource = 'fifa', customRanks = null) {
+  return generateDeterministicPredictions(rankSource, customRanks, createRNG(seed));
 }
