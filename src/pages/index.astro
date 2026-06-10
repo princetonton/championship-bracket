@@ -5,8 +5,10 @@ import { getGroupFixtures } from '../data/fixtures';
 
 // Build static HTML for groups
 const teamOptions = GROUP_LETTERS.flatMap(l =>
-  GROUPS[l].teams.map(t => `<option value="${t.name}">${t.name}</option>`)
-).join('');
+  GROUPS[l].teams.map(t => ({ name: t.name }))
+).sort((a, b) => a.name.localeCompare(b.name))
+.map(t => `<option value="${t.name}">${t.name}</option>`)
+.join('');
 
 const groupPanels = GROUP_LETTERS.map(letter => {
   const group = GROUPS[letter];
@@ -64,7 +66,7 @@ const groupPanels = GROUP_LETTERS.map(letter => {
     <section class="section" id="predictions-section">
       <h2 class="section-title">📋 My Predictions</h2>
       <div class="card">
-        <h3>🇺🇸 Own Tipp</h3>
+        <h3>🇨🇭 Own Tipp</h3>
         <div class="prediction-form" id="prediction-form">
           <label>
             World Champion
