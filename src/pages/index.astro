@@ -123,6 +123,15 @@ const groupPanels = GROUP_LETTERS.map(letter => {
       </div>
       <p class="section-subtitle">Enter the scores for all 72 group matches.</p>
 
+      <div class="seed-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:6px">
+        <span style="font-size:0.85rem;color:var(--textDim)">Seed:</span>
+        <input type="number" id="seed-input" placeholder="(empty = deterministic)" style="width:130px;background:var(--surface1);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:4px 8px;font-size:0.85rem" />
+        <button class="btn btn-sm" id="seed-random-btn" style="font-size:0.8rem">🎲 Random</button>
+        <label style="font-size:0.85rem;display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="shuffle-ranks" /> Shuffle ranks (±15%)
+        </label>
+      </div>
+
       <div id="group-panels" class="groups-grid"><Fragment set:html={groupPanels} /></div>
 
     </section>
@@ -196,7 +205,7 @@ import { getGroupFixtures } from '../data/fixtures';
 import { computeGroupStandings, allGroupMatchesComplete } from '../lib/standings';
 import { getBestThirdPlaced } from '../lib/qualification';
 import { generateRoundOf32, getRoundMatches } from '../lib/bracketLogic';
-import { generatePredictions, simulateMatch, getTeamPts, createRNG, generateDeterministicPredictions, deterministicPredictMatch, getTeamRankLookup } from '../lib/prediction';
+import { generatePredictions, simulateMatch, getTeamPts, createRNG, generateDeterministicPredictions, deterministicPredictMatch, getTeamRankLookup, generateSeededPredictions } from '../lib/prediction';
 import { loadProfile, saveProfile, loadCustomRankings } from '../lib/storage';
 
 let currentProfile = 'guest';
@@ -217,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPrintButton();
   initGuestName();
   initPrefillRoundButtons();
+  initSeedRandom();
   // Handle ?profile=dani URL param (from baseline import redirect)
   const params = new URLSearchParams(window.location.search);
   if (params.get('profile') === 'dani') {
@@ -308,13 +318,32 @@ function saveCurrentProfile() {
   saveProfile(currentProfile, data);
 }
 
+function getSeedValue() {
+  const val = document.getElementById('seed-input').value;
+  return val === '' ? null : parseInt(val, 10);
+}
+
 function initPrefill() {
   document.getElementById('prefill-btn').addEventListener('click', () => {
-    predictionData = generateDeterministicPredictions('fifa');
+    const seed = getSeedValue();
+    const shuffle = document.getElementById('shuffle-ranks').checked;
+
+    if (seed !== null) {
+      predictionData = generateSeededPredictions(seed, 'fifa', null, shuffle);
+    } else {
+      predictionData = generateDeterministicPredictions('fifa');
+    }
+
     fillAllScores(predictionData.matchResults);
     matchResults = { ...predictionData.matchResults };
     saveCurrentProfile();
-    document.getElementById('calc-status').textContent = '✅ Prefilled with FIFA ranking!';
+
+    if (seed !== null) {
+      document.getElementById('calc-status').textContent = `✅ Prefilled with seed ${seed}!`;
+    } else {
+      document.getElementById('calc-status').textContent = '✅ Prefilled with FIFA ranking!';
+    }
+
     if (allGroupMatchesComplete(matchResults)) {
       generateKnockout(matchResults);
     }
@@ -334,11 +363,26 @@ function initCustomPrefill() {
       window.location.href = '/rankings';
       return;
     }
-    predictionData = generateDeterministicPredictions('custom', saved);
+
+    const seed = getSeedValue();
+    const shuffle = document.getElementById('shuffle-ranks').checked;
+
+    if (seed !== null) {
+      predictionData = generateSeededPredictions(seed, 'custom', saved, shuffle);
+    } else {
+      predictionData = generateDeterministicPredictions('custom', saved);
+    }
+
     fillAllScores(predictionData.matchResults);
     matchResults = { ...predictionData.matchResults };
     saveCurrentProfile();
-    document.getElementById('calc-status').textContent = '✅ Prefilled with own ranking!';
+
+    if (seed !== null) {
+      document.getElementById('calc-status').textContent = `✅ Prefilled with seed ${seed}!`;
+    } else {
+      document.getElementById('calc-status').textContent = '✅ Prefilled with own ranking!';
+    }
+
     if (allGroupMatchesComplete(matchResults)) {
       generateKnockout(matchResults);
     }
@@ -791,6 +835,12 @@ function initPrefillRoundButtons() {
       updatePredictionDisplay();
     });
   }
+}
+
+function initSeedRandom() {
+  document.getElementById('seed-random-btn').addEventListener('click', () => {
+    document.getElementById('seed-input').value = String(Math.floor(Math.random() * 999999) + 1);
+  });
 }
 
 function initRandomPrefill() {
