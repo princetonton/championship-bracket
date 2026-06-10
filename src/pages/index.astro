@@ -312,7 +312,6 @@ function initPrefill() {
     predictionData = generateDeterministicPredictions('fifa');
     fillAllScores(predictionData.matchResults);
     matchResults = { ...predictionData.matchResults };
-    fillPredictions(predictionData);
     saveCurrentProfile();
     document.getElementById('calc-status').textContent = '✅ Prefilled with FIFA ranking!';
     if (allGroupMatchesComplete(matchResults)) {
@@ -337,7 +336,6 @@ function initCustomPrefill() {
     predictionData = generateDeterministicPredictions('custom', saved);
     fillAllScores(predictionData.matchResults);
     matchResults = { ...predictionData.matchResults };
-    fillPredictions(predictionData);
     saveCurrentProfile();
     document.getElementById('calc-status').textContent = '✅ Prefilled with own ranking!';
     if (allGroupMatchesComplete(matchResults)) {
