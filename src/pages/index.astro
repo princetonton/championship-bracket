@@ -146,6 +146,7 @@ const groupPanels = GROUP_LETTERS.map(letter => {
       </div>
 
       <div class="round-nav" style="margin-top:16px">
+        <button class="btn btn-sm" id="refresh-standings-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">🔄 Update standings</button>
         <button class="btn btn-primary" id="calculate-btn">📊 Generate Knockout</button>
         <span id="calc-status" style="color:var(--textDim);font-size:0.85rem"></span>
       </div>
@@ -218,6 +219,7 @@ const EMPTY_PREDS = { champion: '', switzerlandRound: 'Group Stage', switzerland
 document.addEventListener('DOMContentLoaded', () => {
   initScoreInputs();
   initCalculate();
+  initRefreshStandings();
   initNextRoundButtons();
   initRandomPrefill();
   initPrefill();
@@ -456,6 +458,15 @@ function initCalculate() {
     matchResults = results;
     saveCurrentProfile();
     generateKnockout(results);
+  });
+}
+
+function initRefreshStandings() {
+  document.getElementById('refresh-standings-btn').addEventListener('click', () => {
+    const results = getFullMatchResults();
+    matchResults = results;
+    generateKnockout(results);
+    saveCurrentProfile();
   });
 }
 
