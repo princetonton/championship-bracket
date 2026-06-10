@@ -577,14 +577,14 @@ function showChampion() {
   const thirdMatch = finalResults['THIRD'];
 
   if (finalMatch && finalMatch.homeScore != null && finalMatch.awayScore != null) {
-    const homeName = document.querySelector('#final-bracket .bracket-match:first-child .team-name.home')?.textContent || '?';
-    const awayName = document.querySelector('#final-bracket .bracket-match:first-child .team-name.away')?.textContent || '?';
+    const homeName = document.querySelectorAll('#final-bracket .bracket-match')[1]?.querySelector('.team-name.home')?.textContent || '?';
+    const awayName = document.querySelectorAll('#final-bracket .bracket-match')[1]?.querySelector('.team-name.away')?.textContent || '?';
     const champion = finalMatch.homeScore > finalMatch.awayScore ? homeName : awayName;
 
     let thirdText = '';
     if (thirdMatch && thirdMatch.homeScore != null && thirdMatch.awayScore != null) {
-      const tHome = document.querySelectorAll('#final-bracket .bracket-match')[1]?.querySelector('.team-name.home')?.textContent || '?';
-      const tAway = document.querySelectorAll('#final-bracket .bracket-match')[1]?.querySelector('.team-name.away')?.textContent || '?';
+      const tHome = document.querySelector('#final-bracket .bracket-match:first-child .team-name.home')?.textContent || '?';
+      const tAway = document.querySelector('#final-bracket .bracket-match:first-child .team-name.away')?.textContent || '?';
       const thirdPlace = thirdMatch.homeScore > thirdMatch.awayScore ? tHome : tAway;
       thirdText = `<div style="margin-top:8px;font-size:0.9rem;color:var(--textDim)">Third place: <strong>${thirdPlace}</strong></div>`;
     }
