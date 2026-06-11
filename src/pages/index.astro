@@ -32,7 +32,7 @@ const groupPanels = GROUP_LETTERS.map(letter => {
       </div>
     `;
   }).join('');
-  return `<div class="group-panel card" data-group="${letter}"><h2>Group ${letter}</h2><div class="group-teams" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${teamBadges}</div><div class="matches-container">${matches}</div></div>`;
+  return `<div class="group-panel card" data-group="${letter}"><h2>Group ${letter} <a href="/teams#${letter}" target="_blank" style="font-size:0.65rem;font-weight:600;color:var(--gold);text-decoration:none;margin-left:8px;vertical-align:middle;opacity:0.7;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">📋 Squad</a></h2><div class="group-teams" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">${teamBadges}</div><div class="matches-container">${matches}</div></div>`;
 });
 
 // Chunk into groups of 4 for PDF page breaks
@@ -47,8 +47,12 @@ const groupPanelsHtml = groupChunks.join('');
   <header>
     <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
       <div>
-        <h1>FIFA World Cup 2026</h1>
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <h1>FIFA World Cup 2026</h1>
+          <a href="/trivia" target="_blank" class="h1-trivia">🤯 TRIVIA BLAST 🧠 <span class="bouncing-ball">⚽</span></a>
+        </div>
         <div class="subtitle">Championship Tracker</div>
+        <div id="emoji-hint" style="font-size:0.78rem;color:var(--gold);opacity:0.7;margin-top:6px;display:flex;align-items:center;gap:4px">✨ <span>Click the floating emojis!</span></div>
         <div id="print-name" style="display:none;font-size:0.85rem;color:var(--textDim);margin-top:4px"></div>
       </div>
       <div class="profile-selector" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -248,6 +252,16 @@ document.addEventListener('DOMContentLoaded', () => {
       select.value = 'dani';
       select.dispatchEvent(new Event('change'));
     }
+  }
+  // Emoji hint: dismiss on first click, persist via sessionStorage
+  if (!sessionStorage.getItem('emojiHintDismissed')) {
+    const hint = document.getElementById('emoji-hint');
+    const kill = () => {
+      hint.style.display = 'none';
+      sessionStorage.setItem('emojiHintDismissed', '1');
+      document.removeEventListener('click', kill);
+    };
+    document.addEventListener('click', kill);
   }
 });
 

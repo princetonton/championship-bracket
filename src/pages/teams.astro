@@ -1,0 +1,461 @@
+---
+import Base from '../layouts/Base.astro';
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+import { TEAM_INFO } from '../data/teams';
+import { getFixtureSchedule } from '../data/schedule';
+import { getH2H } from '../data/h2h';
+
+const GROUP_COLORS = {
+  A: '#f59e0b', B: '#3b82f6', C: '#22c55e', D: '#ef4444',
+  E: '#a855f7', F: '#ec4899', G: '#14b8a6', H: '#f97316',
+  I: '#6366f1', J: '#84cc16', K: '#06b6d4', L: '#e11d48',
+};
+
+const FIXTURE_INDICES = [
+  [0, 2, 4],
+  [0, 3, 5],
+  [1, 2, 5],
+  [1, 3, 4],
+];
+
+const FIXTURE_PAIRS = [
+  { h: 0, a: 1 }, { h: 2, a: 3 },
+  { h: 0, a: 2 }, { h: 1, a: 3 },
+  { h: 0, a: 3 }, { h: 1, a: 2 },
+];
+
+function opponentName(group, teamIdx, fixtureIdx) {
+  const teams = GROUPS[group].teams;
+  const pair = FIXTURE_PAIRS[fixtureIdx];
+  return pair.h === teamIdx ? teams[pair.a].name : teams[pair.h].name;
+}
+
+const ALL_TEAMS = GROUP_LETTERS.flatMap(g =>
+  GROUPS[g].teams.map(t => ({ group: g, name: t.name }))
+).sort((a, b) => a.name.localeCompare(b.name));
+---
+
+<Base>
+  <header>
+    <div class="container">
+      <h1>FIFA World Cup 2026</h1>
+      <div class="subtitle">Squads &amp; Group Stage Schedule</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <p class="page-intro">All 48 teams across 12 groups. Kickoff times in ET (US Eastern) and CEST (Central European Summer).</p>
+
+      <div class="abbr-legend">
+        <span><strong>W</strong> Champion</span>
+        <span><strong>RU</strong> Runner-up</span>
+        <span><strong>3rd</strong> Third place</span>
+        <span><strong>4th</strong> Fourth place</span>
+        <span><strong>QF</strong> Quarter-finals</span>
+        <span><strong>R16</strong> Round of 16</span>
+        <span><strong>GS</strong> Group stage</span>
+        <span><strong>—</strong> Debut</span>
+      </div>
+
+      <div class="filters">
+        <div class="filter-group">
+          <label>Group</label>
+          <div class="group-pills">
+            <button class="pill active" data-group="all">All</button>
+            {GROUP_LETTERS.map(g => (
+              <button class="pill" data-group={g}>{g}</button>
+            ))}
+          </div>
+        </div>
+        <div class="filter-team">
+          <label>Team</label>
+          <select id="team-select">
+            <option value="">All Teams</option>
+            {ALL_TEAMS.map(t => (
+              <option value={`${t.group}|${t.name}`}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {GROUP_LETTERS.map(group => {
+        const teams = GROUPS[group].teams;
+        const color = GROUP_COLORS[group];
+
+        return (
+          <div class="group-section" data-group={group} style={`--group-color: ${color}`}>
+            <h2 class="group-title">Group {group}</h2>
+
+            <div class="team-grid">
+              {teams.map((team, idx) => {
+                const info = TEAM_INFO[team.name];
+                return (
+                  <div class="team-card" data-group={group} data-team={team.name}>
+                    <div class="team-header">
+                      <span class="team-flag">{info?.flag || '🏳️'}</span>
+                      <span class="team-icon">{info?.icon || ''}</span>
+                      <span class="team-name">{team.name}</span>
+                      {info?.host && <span class="host-badge">🏠 Host</span>}
+                      <span class="team-rank">FIFA #{team.rank}</span>
+                    </div>
+                    <p class="team-desc">{info?.desc || ''}</p>
+                    <div class="team-stats">
+                      <span class="stat"><strong>{info?.wc || '?'}</strong> WC</span>
+                      <span class="stat"><strong>{info?.best || '?'}</strong> Best</span>
+                    </div>
+                    <p class="team-fact">{info?.fact || ''}</p>
+
+                    {info?.topScorer ? (
+                      <div class="team-top-scorer">⚽ <strong>{info.topScorer.name}</strong> ({info.topScorer.goals} goals)</div>
+                    ) : (
+                      <div class="team-top-scorer debut">⚽ First World Cup campaign</div>
+                    )}
+
+                    <div class="team-matches">
+                      {FIXTURE_INDICES[idx].map(i => {
+                        const fid = `${group}_${String(i + 1).padStart(2, '0')}`;
+                        const sched = getFixtureSchedule(fid);
+                        const opp = opponentName(group, idx, i);
+                        const h2h = getH2H(team.name, opp);
+                        if (!sched) return null;
+                        return (
+                          <div>
+                            <div class="match-row">
+                              <span class="match-date">{sched.date}</span>
+                              <span class="match-vs">{team.name} vs {opp}</span>
+                              <span class="match-time">{sched.timeET} ET / {sched.timeCEST} CEST</span>
+                            </div>
+                            {h2h && <div class="h2h-row">WC H2H: <span class="h2h-record">{h2h.teamAWins}W · {h2h.draws}D · {h2h.teamBWins}L</span></div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  </main>
+</Base>
+
+<style is:global>
+  .page-intro {
+    color: var(--textDim);
+    font-size: 0.9rem;
+    margin-bottom: 32px;
+  }
+
+  .group-section {
+    margin-bottom: 48px;
+  }
+  .group-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--group-color);
+    border-left: 4px solid var(--group-color);
+    padding-left: 12px;
+    margin-bottom: 16px;
+  }
+
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+  }
+
+  .team-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+  }
+  .team-card:hover {
+    border-color: var(--group-color);
+    box-shadow: 0 4px 20px color-mix(in srgb, var(--group-color) 15%, transparent);
+  }
+
+  .team-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .team-flag { font-size: 1.6rem; }
+  .team-icon { font-size: 1.2rem; }
+  .team-name { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .host-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: var(--group-color);
+    color: #000;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .team-rank {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--textDim);
+    font-weight: 600;
+  }
+
+  .team-desc {
+    font-size: 0.8rem;
+    color: var(--textDim);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+
+  .team-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .stat {
+    font-size: 0.75rem;
+    color: var(--textDim);
+  }
+  .stat strong {
+    color: var(--text);
+  }
+
+  .team-fact {
+    font-size: 0.78rem;
+    color: color-mix(in srgb, var(--group-color) 70%, var(--text));
+    font-style: italic;
+    margin-bottom: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .abbr-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 0.72rem;
+    color: var(--textDim);
+    margin-bottom: 24px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .abbr-legend strong { color: var(--text); }
+
+  .team-top-scorer {
+    font-size: 0.8rem;
+    color: var(--text);
+    margin-bottom: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .team-top-scorer.debut {
+    color: var(--textDim);
+    font-style: italic;
+  }
+
+  .team-matches {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .match-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: var(--textDim);
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.02);
+  }
+  .match-row:hover {
+    background: rgba(255,255,255,0.05);
+  }
+  .match-date {
+    font-weight: 600;
+    color: var(--text);
+    min-width: 55px;
+  }
+  .match-vs {
+    flex: 1;
+  }
+  .match-time {
+    text-align: right;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .h2h-row {
+    font-size: 0.65rem;
+    color: var(--textDim);
+    padding: 1px 6px 4px;
+    display: flex;
+    gap: 4px;
+  }
+  .h2h-record {
+    font-weight: 600;
+  }
+
+  .filters {
+    display: flex;
+    gap: 24px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    position: sticky;
+    top: 54px;
+    z-index: 50;
+  }
+  .filter-group label,
+  .filter-team label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--textDim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .group-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .pill {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--textDim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill:hover {
+    border-color: var(--text);
+    color: var(--text);
+  }
+  .pill.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+  .filter-team select {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    min-width: 200px;
+    cursor: pointer;
+  }
+  .filter-team select:focus {
+    border-color: var(--accent);
+    outline: none;
+  }
+  .group-section.hidden {
+    display: none;
+  }
+  .team-card.hidden {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .team-grid { grid-template-columns: 1fr; }
+    .match-time { font-size: 0.6rem; }
+    .filters { flex-direction: column; align-items: stretch; }
+    .filter-team select { min-width: unset; width: 100%; }
+  }
+</style>
+
+<script>
+  const pills = document.querySelectorAll('.pill');
+  const teamSelect = document.getElementById('team-select');
+  const groupSections = document.querySelectorAll('.group-section');
+  const teamCards = document.querySelectorAll('.team-card');
+
+  function filter(group, team) {
+    let hasVisible = false;
+
+    groupSections.forEach(section => {
+      const cards = section.querySelectorAll('.team-card');
+      let sectionVisible = false;
+
+      cards.forEach(card => {
+        const cardGroup = card.dataset.group;
+        const cardTeam = card.dataset.team;
+        const matchGroup = group === 'all' || cardGroup === group;
+        const matchTeam = !team || cardTeam === team;
+
+        if (matchGroup && matchTeam) {
+          card.classList.remove('hidden');
+          sectionVisible = true;
+          if (team && cardTeam === team) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+
+      if (sectionVisible) {
+        section.classList.remove('hidden');
+        hasVisible = true;
+      } else {
+        section.classList.add('hidden');
+      }
+    });
+
+    if (!hasVisible && !team) {
+      document.querySelector('[data-group="A"]')?.closest('.group-section')?.classList.remove('hidden');
+    }
+  }
+
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      teamSelect.value = '';
+      filter(pill.dataset.group, '');
+    });
+  });
+
+  teamSelect.addEventListener('change', () => {
+    const val = teamSelect.value;
+    if (!val) {
+      pills.forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-group="all"]')?.classList.add('active');
+      filter('all', '');
+      return;
+    }
+    const [group, team] = val.split('|');
+    pills.forEach(p => {
+      p.classList.toggle('active', p.dataset.group === group);
+    });
+    filter(group, team);
+  });
+
+  // Hash-based auto-filter on load
+  const hash = location.hash.replace('#', '');
+  if (hash) {
+    const target = document.querySelector(`.pill[data-group="${hash}"]`);
+    if (target) {
+      target.click();
+      setTimeout(() => {
+        document.querySelector('.group-section[data-group="' + hash + '"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }
+</script>

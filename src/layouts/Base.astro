@@ -17,8 +17,9 @@ import '../styles/global.css';
       <div class="nav-links">
         <a href="/" class="nav-link">Tracker</a>
         <a href="/rankings" class="nav-link">Rankings</a>
+        <a href="/teams" class="nav-link">Squads</a>
+        <a href="/trivia" class="nav-link">Trivia</a>
         <a href="/baseline" class="nav-link">Baseline</a>
-
       </div>
     </div>
   </nav>
@@ -26,6 +27,94 @@ import '../styles/global.css';
   <footer style="text-align:center;padding:24px;color:var(--textDim);font-size:0.8rem">
     FIFA World Cup 2026 — Championship Tracker
   </footer>
+  <div class="apparition dino" style="top:56px;left:0">🦖</div>
+  <div class="apparition leaf" style="top:56px;right:0">🍁</div>
+  <div class="apparition llama" style="top:50%;right:0">🦙</div>
+  <div class="apparition burger" style="bottom:24px;left:24px">🍔</div>
+  <div class="apparition party" style="bottom:24px;right:24px">🎉</div>
+  <div class="click-hint">👆 click an emoji</div>
+<script>
+document.querySelectorAll('.apparition').forEach(el => {
+  el.addEventListener('click', function(e) {
+    const rect = this.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const cls = this.classList[1];
+
+    if (cls === 'dino') {
+      const a = this.animate([
+        { transform: 'scale(1) rotate(0deg)', opacity: 1 },
+        { transform: 'scale(1.3) rotate(360deg)', opacity: 0.8 },
+        { transform: 'scale(0.8) rotate(720deg)', opacity: 0.4 },
+        { transform: 'translate(-80px, -180px) scale(0.3) rotate(1080deg)', opacity: 0 },
+      ], { duration: 700, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    } else if (cls === 'llama') {
+      const a = this.animate([
+        { transform: 'scale(1) rotate(0deg)', opacity: 1 },
+        { transform: 'scale(1.3) rotate(-360deg)', opacity: 0.8 },
+        { transform: 'scale(0.8) rotate(-720deg)', opacity: 0.4 },
+        { transform: 'translate(80px, -180px) scale(0.3) rotate(-1080deg)', opacity: 0 },
+      ], { duration: 700, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    } else {
+      const a = this.animate([
+        { transform: 'scale(1)', opacity: 1 },
+        { transform: 'scale(2.5)', opacity: 0.6 },
+        { transform: 'scale(0)', opacity: 0 },
+      ], { duration: 500, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    }
+
+    function reset(el) {
+      el.style.transform = '';
+      el.style.opacity = '';
+    }
+
+    const configs = {
+      dino: { count: 35, colors: ['#ff4500','#ff8c00','#ffd700','#ff6347'], life: 900, spread: 200 },
+      leaf: { count: 30, colors: ['#7cfc00','#adff2f','#ffd700','#98fb98'], life: 1200, spread: 150, gravity: true },
+      llama: { count: 50, colors: ['#ff0','#f0f','#0ff','#f00','#0f0','#00f'], life: 900, spread: 180, confetti: true },
+      burger: { count: 25, colors: ['#ffd700','#fff8dc','#ffd700'], life: 700, spread: 130, star: true },
+      party: { count: 60, colors: ['#ff0','#f0f','#0ff','#f00','#0f0','#00f','#ff8c00','#fff'], life: 1000, spread: 250, confetti: true },
+    };
+
+    const cfg = configs[cls] || configs.party;
+
+    for (let i = 0; i < cfg.count; i++) {
+      const p = document.createElement('div');
+      p.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;z-index:999;pointer-events:none;`;
+
+      const size = 6 + Math.random() * 8;
+      const angle = Math.random() * 360;
+      const dist = (40 + Math.random() * cfg.spread) * (cfg.star ? 0.6 : 1);
+      const dx = Math.cos(angle * Math.PI / 180) * dist;
+      const dy = Math.sin(angle * Math.PI / 180) * dist - (cfg.gravity ? 60 : 0);
+      const color = cfg.colors[Math.floor(Math.random() * cfg.colors.length)];
+
+      if (cfg.confetti) {
+        p.textContent = ['●','▪','♦','★','♥'][Math.floor(Math.random()*5)];
+        p.style.cssText += `font-size:${size}px;color:${color};`;
+      } else if (cfg.star) {
+        p.textContent = '⭐';
+        p.style.cssText += `font-size:${size * 0.6}px;`;
+      } else {
+        p.style.cssText += `width:${size}px;height:${size}px;border-radius:50%;background:${color};`;
+      }
+
+      document.body.appendChild(p);
+
+      const rx = dx + (Math.random() - 0.5) * 40;
+      const ry = dy + (Math.random() - 0.5) * 40;
+
+      p.animate([
+        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+        { transform: `translate(${rx}px,${ry}px) scale(0.3)`, opacity: 0 },
+      ], { duration: cfg.life, easing: 'ease-out', fill: 'forwards' }).onfinish = () => p.remove();
+    }
+  });
+});
+</script>
 </body>
 </html>
 
@@ -64,5 +153,115 @@ import '../styles/global.css';
   .nav-link:hover {
     color: var(--text);
     background: rgba(255,255,255,0.05);
+  }
+  .h1-trivia {
+    display: inline-block;
+    font-size: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    color: #000;
+    background: linear-gradient(135deg, var(--gold), #d97706);
+    padding: 2px 12px;
+    border-radius: 20px;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
+    animation: trivia-pulse 2.5s ease-in-out infinite;
+    line-height: 1.4;
+  }
+  .h1-trivia:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    transform: scale(1.05);
+  }
+  @keyframes trivia-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.3); }
+    50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+  }
+  .bouncing-ball {
+    display: inline-block;
+    font-size: 0.7em;
+    animation: ball-bounce 2.5s ease-in-out infinite;
+  }
+  @keyframes ball-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-3px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(-2px); }
+  }
+
+  .apparition {
+    position: fixed;
+    z-index: 90;
+    font-size: 2.6rem;
+    cursor: pointer;
+    user-select: none;
+    opacity: 0;
+    line-height: 1;
+    transition: transform 0.1s;
+  }
+  .apparition:hover { transform: scale(1.25); }
+
+  .click-hint {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99;
+    font-size: 0.75rem;
+    color: var(--textDim);
+    opacity: 0.3;
+    pointer-events: none;
+    user-select: none;
+    letter-spacing: 0.3px;
+  }
+
+  .dino { animation: pop-dino 53s ease-in-out infinite; }
+  .leaf { animation: pop-leaf 43s ease-in-out infinite; }
+  .llama { animation: pop-llama 47s ease-in-out infinite; }
+  .burger { animation: pop-burger 61s ease-in-out infinite; }
+  .party { animation: pop-party 59s ease-in-out infinite; }
+
+  @keyframes pop-dino {
+    0%, 75%, 100% { opacity: 0; transform: translateX(-60px) scale(0.3); }
+    78% { opacity: 1; transform: translateX(20px) scale(1); }
+    82% { opacity: 1; transform: translateX(40px) scale(1.2) rotate(-6deg); }
+    86% { opacity: 1; transform: translateX(35px) scale(1) rotate(4deg); }
+    90% { opacity: 1; transform: translateX(40px) scale(1.1) rotate(-3deg); }
+    94% { opacity: 0; transform: translateX(-60px) scale(0.3); }
+  }
+
+  @keyframes pop-leaf {
+    0%, 72%, 100% { opacity: 0; transform: translate(60px, -40px) scale(0.3) rotate(0deg); }
+    75% { opacity: 1; transform: translate(-20px, 10px) scale(1) rotate(15deg); }
+    80% { opacity: 1; transform: translate(-40px, 20px) scale(1.1) rotate(-10deg); }
+    85% { opacity: 1; transform: translate(-35px, 30px) scale(1) rotate(8deg); }
+    90% { opacity: 1; transform: translate(-40px, 15px) scale(1.05) rotate(-5deg); }
+    94% { opacity: 0; transform: translate(60px, -40px) scale(0.3) rotate(0deg); }
+  }
+
+  @keyframes pop-llama {
+    0%, 72%, 100% { opacity: 0; transform: translate(80px, -50%) scale(0.3); }
+    75% { opacity: 1; transform: translate(-40px, -50%) scale(1); }
+    79% { opacity: 1; transform: translate(-30px, -120%) scale(1.1) rotate(360deg); }
+    83% { opacity: 1; transform: translate(-40px, -50%) scale(1); }
+    88% { opacity: 1; transform: translate(-35px, -60%) scale(1.05); }
+    94% { opacity: 0; transform: translate(80px, -50%) scale(0.3); }
+  }
+
+  @keyframes pop-burger {
+    0%, 75%, 100% { opacity: 0; transform: translateY(40px) scale(0.3) rotate(-30deg); }
+    78% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    82% { opacity: 1; transform: translateY(-10px) scale(1.1) rotate(12deg); }
+    86% { opacity: 1; transform: translateY(0) scale(1) rotate(-6deg); }
+    90% { opacity: 1; transform: translateY(-6px) scale(1.05) rotate(6deg); }
+    94% { opacity: 0; transform: translateY(40px) scale(0.3) rotate(-30deg); }
+  }
+
+  @keyframes pop-party {
+    0%, 72%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+    75% { opacity: 1; transform: scale(1) rotate(0deg); }
+    79% { opacity: 1; transform: scale(1.3) rotate(-15deg); }
+    84% { opacity: 1; transform: scale(1.1) rotate(8deg); }
+    89% { opacity: 1; transform: scale(1.2) rotate(-5deg); }
+    94% { opacity: 0; transform: scale(0) rotate(0deg); }
   }
 </style>
