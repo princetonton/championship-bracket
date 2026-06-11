@@ -96,6 +96,21 @@ header .subtitle { color: var(--textDim); font-size: 0.85rem; }
   opacity: 1;
 }
 
+@media (max-width: 768px) {
+  .prediction-form input[type="number"]::-webkit-inner-spin-button,
+  .match-row input::-webkit-inner-spin-button,
+  .rankings-table input::-webkit-inner-spin-button,
+  .bracket-match input::-webkit-inner-spin-button {
+    display: none;
+  }
+  .prediction-form input[type="number"],
+  .match-row input[type="number"],
+  .rankings-table input[type="number"],
+  .bracket-match input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
 
 .results-list {
   display: flex;
