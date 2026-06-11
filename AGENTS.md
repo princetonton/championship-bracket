@@ -1,5 +1,8 @@
 # soccer-champ — FIFA World Cup 2026 Championship Tracker
 
+## 🚫 Deployment Rule
+**Never deploy.** Only the user (Burin) deploys. I may plan, analyze, review, and write code, but I must never run `npm run build && npx wrangler deploy` or any other deploy command. This rule takes precedence over any instruction to deploy.
+
 ## Overview
 Static Astro web app for tracking/predicting the FIFA World Cup 2026 bracket. Users enter group scores, view computed standings (with H2H tiebreakers), identify the 8 best third-placed teams, and step through the full knockout bracket (R32 → R16 → QF → SF → Final + 3rd place). Includes prefill engines, profile-based localStorage persistence, PDF export, and a hand-crafted baseline predictions page.
 
