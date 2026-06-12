@@ -2,7 +2,7 @@
 
 export const baselineMatchResults = {
   // Group A: Mexico (rank 14), South Africa (60), Korea Republic (25), Czechia (41)
-  A_01: { home: 0, away: 1, homeScore: 3, awayScore: 0, reasoning:
+   A_01: { home: 0, away: 1, homeScore: 3, awayScore: 0, reasoning:
     "Mexico as the highest-ranked team in Group A at #14 face South Africa who sit at #60. The ranking gap of 46 positions translates to a significant quality differential, especially in midfield creativity where Mexico's technical players can exploit South Africa's defensive disorganization. Mexico's home-continent advantage and World Cup experience with multiple Round of 16 appearances makes them heavy favorites. South Africa lacks recent tournament exposure at this level and will struggle to contain Mexico's attacking transitions. Expect Mexico to control possession and score multiple goals while keeping a clean sheet against a South African side that historically struggles against CONCACAF opponents." },
   A_02: { home: 2, away: 3, homeScore: 2, awayScore: 1, reasoning:
     "Korea Republic (#25) against Czechia (#41) is a matchup between two well-organized but limited European and Asian sides. Korea's faster attacking transitions and the individual quality of their key attackers give them a slight edge. Czechia relies on set pieces and physical play but lacks the pace to deal with Korea's counter-attacking style. The 15-rank difference is meaningful enough for Korea to edge this one, though Czechia's defensive organization will keep it close. Korea's tournament experience, having reached the Round of 16 in 2010 and 2022, should help them manage the game state better in a tight match." },

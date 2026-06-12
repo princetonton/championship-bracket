@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import { GROUPS, GROUP_LETTERS } from '../data/groups';
 import { TEAM_INFO } from '../data/teams';
 import { getFixtureSchedule } from '../data/schedule';
+import { getResult } from '../data/results';
 import { getH2H } from '../data/h2h';
 
 const GROUP_COLORS = {
@@ -28,6 +29,15 @@ function opponentName(group, teamIdx, fixtureIdx) {
   const teams = GROUPS[group].teams;
   const pair = FIXTURE_PAIRS[fixtureIdx];
   return pair.h === teamIdx ? teams[pair.a].name : teams[pair.h].name;
+}
+
+function resultForTeam(teamIdx, fixtureIdx, result) {
+  if (!result) return null;
+  const pair = FIXTURE_PAIRS[fixtureIdx];
+  if (pair.h === teamIdx) {
+    return `${result.homeScore}–${result.awayScore}`;
+  }
+  return `${result.awayScore}–${result.homeScore}`;
 }
 
 const ALL_TEAMS = GROUP_LETTERS.flatMap(g =>
@@ -118,14 +128,20 @@ const ALL_TEAMS = GROUP_LETTERS.flatMap(g =>
                         const sched = getFixtureSchedule(fid);
                         const opp = opponentName(group, idx, i);
                         const h2h = getH2H(team.name, opp);
+                        const result = getResult(fid);
                         if (!sched) return null;
                         return (
-                          <div>
+                          <div class={result ? 'match-finished' : ''}>
                             <div class="match-row">
                               <span class="match-date">{sched.date}</span>
                               <span class="match-vs">{team.name} vs {opp}</span>
-                              <span class="match-time">{sched.timeET} ET / {sched.timeCEST} CEST</span>
+                              {result ? (
+                                <span class="match-score">{resultForTeam(idx, i, result)}</span>
+                              ) : (
+                                <span class="match-time">{sched.timeET} ET / {sched.timeCEST} CEST</span>
+                              )}
                             </div>
+                            {result && <div class="finished-badge">⚽ Finished</div>}
                             {h2h && <div class="h2h-row">WC H2H: <span class="h2h-record">{h2h.teamAWins}W · {h2h.draws}D · {h2h.teamBWins}L</span></div>}
                           </div>
                         );
@@ -289,6 +305,23 @@ const ALL_TEAMS = GROUP_LETTERS.flatMap(g =>
     text-align: right;
     font-size: 0.68rem;
     white-space: nowrap;
+  }
+  .match-score {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--accent);
+    min-width: 30px;
+    text-align: right;
+  }
+  .match-finished {
+    background: rgba(255,255,255,0.02);
+    border-radius: 4px;
+    padding: 2px 0;
+  }
+  .finished-badge {
+    font-size: 0.62rem;
+    color: var(--accent);
+    padding: 0 6px 2px;
   }
 
   .h2h-row {

@@ -2,7 +2,7 @@
 // Indices: 0,1,2,3 → matches: 0v1, 2v3, 0v2, 1v3, 0v3, 1v2
 
 export function getGroupFixtures(groupLetter) {
-  return [
+  const base = [
     { id: `${groupLetter}_01`, group: groupLetter, homeIdx: 0, awayIdx: 1, matchday: 1 },
     { id: `${groupLetter}_02`, group: groupLetter, homeIdx: 2, awayIdx: 3, matchday: 1 },
     { id: `${groupLetter}_03`, group: groupLetter, homeIdx: 0, awayIdx: 2, matchday: 2 },
@@ -10,6 +10,12 @@ export function getGroupFixtures(groupLetter) {
     { id: `${groupLetter}_05`, group: groupLetter, homeIdx: 0, awayIdx: 3, matchday: 3 },
     { id: `${groupLetter}_06`, group: groupLetter, homeIdx: 1, awayIdx: 2, matchday: 3 },
   ];
+  // Non-standard home/away per FIFA schedule
+  if (groupLetter === 'B') {
+    base[3] = { ...base[3], homeIdx: 3, awayIdx: 1 }; // Switzerland vs Bosnia
+    base[4] = { ...base[4], homeIdx: 3, awayIdx: 0 }; // Switzerland vs Canada
+  }
+  return base;
 }
 
 export function getAllFixtureIds() {
