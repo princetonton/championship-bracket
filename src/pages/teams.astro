@@ -138,7 +138,7 @@ const ALL_TEAMS = GROUP_LETTERS.flatMap(g =>
                               {result ? (
                                 <span class="match-score">{resultForTeam(idx, i, result)}</span>
                               ) : (
-                                <span class="match-time">{sched.timeET} ET / {sched.timeCEST} CEST</span>
+                                <span class="match-time">{sched.timeET} ET / {sched.timeCEST} CEST{sched.cestNextDay ? ' (+1)' : ''}</span>
                               )}
                             </div>
                             {result && <div class="finished-badge">⚽ Finished</div>}

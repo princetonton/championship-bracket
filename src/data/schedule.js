@@ -100,6 +100,14 @@ export const FIXTURE_SCHEDULE = {
   L_06: { date: 'Jun 27', timeET: '17:00', timeCEST: '23:00', venue: 'Philadelphia Stadium, Philadelphia' },
 };
 
+function cestNextDay(item) {
+  const cestHour = parseInt(item.timeCEST.split(':')[0]);
+  const etHour = parseInt(item.timeET.split(':')[0]);
+  return cestHour < etHour;
+}
+
 export function getFixtureSchedule(fixtureId) {
-  return FIXTURE_SCHEDULE[fixtureId] || null;
+  const item = FIXTURE_SCHEDULE[fixtureId];
+  if (!item) return null;
+  return { ...item, cestNextDay: cestNextDay(item) };
 }
