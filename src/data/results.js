@@ -29,6 +29,12 @@ export const RESULTS = {
   // Group J
   J_01: { homeScore: 3, awayScore: 0 },
   J_02: { homeScore: 1, awayScore: 1 },
+  // Group K
+  K_01: { homeScore: 1, awayScore: 1 },
+  K_02: { homeScore: 1, awayScore: 3 },
+  // Group L
+  L_01: { homeScore: 4, awayScore: 2 },
+  L_02: { homeScore: 1, awayScore: 0 },
 };
 
 export function getResult(fixtureId) {
