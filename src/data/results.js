@@ -28,7 +28,7 @@ export const RESULTS = {
   I_02: { homeScore: 1, awayScore: 4 },
   // Group J
   J_01: { homeScore: 3, awayScore: 0 },
-  J_02: { homeScore: 1, awayScore: 1 },
+  J_02: { homeScore: 3, awayScore: 1 },
   // Group K
   K_01: { homeScore: 1, awayScore: 1 },
   K_02: { homeScore: 1, awayScore: 3 },

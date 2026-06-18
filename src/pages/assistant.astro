@@ -1,0 +1,1190 @@
+---
+import Base from '../layouts/Base.astro';
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+import { RESULTS } from '../data/results';
+import { getGroupFixtures, getAllFixtureIds } from '../data/fixtures';
+import { FIXTURE_SCHEDULE } from '../data/schedule';
+
+// Build full fixture list with schedule data
+const allFixtures = [];
+for (const letter of GROUP_LETTERS) {
+  const fixtures = getGroupFixtures(letter);
+  for (const f of fixtures) {
+    const sched = FIXTURE_SCHEDULE[f.id] || {};
+    allFixtures.push({
+      id: f.id,
+      group: letter,
+      homeIdx: f.homeIdx,
+      awayIdx: f.awayIdx,
+      matchday: f.matchday,
+      date: sched.date || '',
+      timeET: sched.timeET || '',
+      timeCEST: sched.timeCEST || '',
+      venue: sched.venue || '',
+    });
+  }
+}
+
+// Ranking list (from user's profile)
+const rankingList = [
+  { name: 'Balldrian P', pts: 103, rang: 1 },
+  { name: 'Manfred P', pts: 103, rang: 1 },
+  { name: 'Martina Z', pts: 101, rang: 3 },
+  { name: 'Raphael Bucher', pts: 100, rang: 4 },
+  { name: 'Fan Zone', pts: 97, rang: 5 },
+  { name: 'Vincent R', pts: 96, rang: 6 },
+  { name: 'Manu C', pts: 95, rang: 7 },
+  { name: 'Senada E', pts: 93, rang: 8 },
+  { name: 'Corinna A', pts: 91, rang: 9 },
+  { name: 'Michael B', pts: 86, rang: 10 },
+  { name: 'Leonor R', pts: 86, rang: 10 },
+  { name: 'Guirec BZH', pts: 86, rang: 10 },
+  { name: 'Lisa K', pts: 85, rang: 13 },
+  { name: 'Dani A', pts: 85, rang: 13 },
+  { name: 'Reto B', pts: 84, rang: 15 },
+  { name: 'Silvano Maradona', pts: 83, rang: 16 },
+  { name: 'Marine P', pts: 82, rang: 17 },
+  { name: '12 Points go to Switzerland', pts: 82, rang: 17 },
+  { name: 'Julia B', pts: 81, rang: 19 },
+  { name: 'Stefan M', pts: 80, rang: 20 },
+];
+
+// Bookmaker winner odds (as of June 18, 2026)
+const winnerOdds = {
+  France: { american: 410, probability: 0.196, tier: 'favorite' },
+  Spain: { american: 480, probability: 0.172, tier: 'favorite' },
+  England: { american: 650, probability: 0.133, tier: 'favorite' },
+  Portugal: { american: 900, probability: 0.100, tier: 'contender' },
+  Argentina: { american: 900, probability: 0.100, tier: 'contender' },
+  Brazil: { american: 1000, probability: 0.091, tier: 'contender' },
+  Germany: { american: 1400, probability: 0.067, tier: 'contender' },
+  Netherlands: { american: 1700, probability: 0.056, tier: 'contender' },
+  Norway: { american: 3300, probability: 0.029, tier: 'outsider' },
+  USA: { american: 3500, probability: 0.028, tier: 'outsider' },
+  Belgium: { american: 3500, probability: 0.028, tier: 'outsider' },
+  Colombia: { american: 3500, probability: 0.028, tier: 'outsider' },
+  Japan: { american: 4500, probability: 0.022, tier: 'outsider' },
+  Morocco: { american: 4500, probability: 0.022, tier: 'outsider' },
+  Mexico: { american: 5500, probability: 0.018, tier: 'outsider' },
+  Uruguay: { american: 8000, probability: 0.012, tier: 'longshot' },
+  Switzerland: { american: 8000, probability: 0.012, tier: 'longshot' },
+};
+
+// Host nations
+const hostNations = ['Mexico', 'USA', 'Canada'];
+
+const allFixtureData = JSON.stringify(allFixtures);
+const groupsData = JSON.stringify(GROUPS);
+const resultsData = JSON.stringify(RESULTS);
+const rankingData = JSON.stringify(rankingList);
+const oddsData = JSON.stringify(winnerOdds);
+const hostsData = JSON.stringify(hostNations);
+const lettersData = JSON.stringify(GROUP_LETTERS);
+---
+
+<Base>
+  <header>
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <h1>🏆 WM-Tipp-Assistent</h1>
+        <div class="subtitle">Dein persönlicher KI-Tippgeber — Dani A · Rang #13 · 85 Pkt</div>
+      </div>
+      <a href="/" class="back-link" style="color:var(--accent2);font-size:0.85rem">← Back to Tracker</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Password lock -->
+    <div id="password-lock" class="password-lock">
+      <div class="password-lock-inner">
+        <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+        <h2 style="margin-bottom:4px">Password Required</h2>
+        <p style="color:var(--textDim);font-size:0.85rem;margin-bottom:16px">Enter the password to access your personal assistant.</p>
+        <div style="display:flex;gap:8px;flex-direction:column;align-items:center">
+          <input type="password" id="password-input" placeholder="Password" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 14px;font-size:0.9rem;width:200px;text-align:center" />
+          <button class="btn btn-primary" id="unlock-btn">Unlock</button>
+          <span id="password-error" style="color:var(--red);font-size:0.8rem;display:none">Incorrect password</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content (hidden until unlocked) -->
+    <div id="assistant-content" style="display:none">
+      <!-- Tab Navigation -->
+      <div class="tab-nav" id="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+        <button class="tab-btn" data-tab="tipps">🎯 Tipp-Assistent</button>
+        <button class="tab-btn" data-tab="gruppen">📋 Gruppen</button>
+        <button class="tab-btn" data-tab="weltmeister">🏆 Weltmeister</button>
+        <button class="tab-btn" data-tab="ko">⚔️ K.O.-Phase</button>
+      </div>
+
+      <!-- Tab: Dashboard -->
+      <div id="tab-dashboard" class="tab-content active">
+        <section class="section">
+          <h2 class="section-title">📊 Dashboard</h2>
+          <div class="dashboard-cards">
+            <div class="card dashboard-card">
+              <div class="dash-label">Dein Rang</div>
+              <div class="dash-value gold">#13</div>
+              <div class="dash-sub">von 20 Spielern</div>
+            </div>
+            <div class="card dashboard-card">
+              <div class="dash-label">Punkte</div>
+              <div class="dash-value">85</div>
+              <div class="dash-sub">18 Pkt Rückstand auf Platz 1</div>
+            </div>
+            <div class="card dashboard-card">
+              <div class="dash-label">Weltmeister-Tipp</div>
+              <div class="dash-value gold">🇫🇷 Frankreich</div>
+              <div class="dash-sub">Fix — nicht änderbar</div>
+            </div>
+            <div class="card dashboard-card" id="prognosis-card">
+              <div class="dash-label">Punkte-Prognose</div>
+              <div class="dash-value" id="prognosis-value">85</div>
+              <div class="dash-sub" id="prognosis-sub">0 richtige Tipps heute</div>
+              <div class="slider-container" style="margin-top:12px">
+                <input type="range" id="prognosis-slider" min="0" max="4" value="0" step="1" style="width:100%">
+                <div class="slider-labels">
+                  <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span>
+                </div>
+              </div>
+              <div id="prognosis-detail" style="margin-top:8px;font-size:0.85rem;color:var(--textDim)"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">⏰ Nächste Spiele</h2>
+          <div id="next-matches" class="next-matches-list"></div>
+        </section>
+      </div>
+
+      <!-- Tab: Tipp-Assistent -->
+      <div id="tab-tipps" class="tab-content">
+        <section class="section">
+          <h2 class="section-title">🎯 Spiel-Tipp-Assistent</h2>
+          <p class="section-subtitle">Für jedes anstehende Spiel: Analyse, Empfehlung und dein persönlicher Tipp.</p>
+          <div class="filter-bar" style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:0.85rem;color:var(--textDim)">Filter:</span>
+            <button class="filter-btn active" data-filter="all">Alle</button>
+            <button class="filter-btn" data-filter="today">Heute</button>
+            <button class="filter-btn" data-filter="upcoming">Bevorstehend</button>
+            <button class="btn btn-sm" id="export-tips-btn" style="margin-left:auto">📤 Alle exportieren</button>
+          </div>
+          <div id="tipps-list" class="tipps-list"></div>
+        </section>
+      </div>
+
+      <!-- Tab: Gruppen -->
+      <div id="tab-gruppen" class="tab-content">
+        <section class="section">
+          <h2 class="section-title">📋 Gruppen-Tabellen</h2>
+          <p class="section-subtitle">Aktuelle Tabellen mit Punkten, Toren und Prognose.</p>
+          <div class="legend" style="display:flex;gap:16px;margin-bottom:16px;font-size:0.8rem">
+            <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--green);margin-right:4px"></span> Platz 1–2 (Qualifikation)</span>
+            <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffa726;margin-right:4px"></span> Noch im Rennen</span>
+            <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--red);margin-right:4px"></span> Raus</span>
+          </div>
+          <div id="gruppen-list" class="gruppen-list"></div>
+        </section>
+      </div>
+
+      <!-- Tab: Weltmeister -->
+      <div id="tab-weltmeister" class="tab-content">
+        <section class="section">
+          <h2 class="section-title">🏆 Weltmeister-Tracker — Frankreich</h2>
+          <p class="section-subtitle">Verfolge Frankreichs Weg zur Titelverteidigung.</p>
+          <div id="weltmeister-content"></div>
+        </section>
+      </div>
+
+      <!-- Tab: K.O.-Phase -->
+      <div id="tab-ko" class="tab-content">
+        <section class="section">
+          <h2 class="section-title">⚔️ K.O.-Phase-Prognose</h2>
+          <p class="section-subtitle">Voraussichtliche Paarungen basierend auf aktuellen Tabellen und Empfehlungen.</p>
+          <div id="ko-content"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</Base>
+
+<!-- Embedded data -->
+<script id="assistant-data" type="application/json" set:html={JSON.stringify({
+  fixtures: allFixtures,
+  groups: GROUPS,
+  results: RESULTS,
+  rankings: rankingList,
+  odds: winnerOdds,
+  hosts: hostNations,
+  letters: GROUP_LETTERS,
+})}></script>
+
+<style is:global>
+  .back-link { text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
+
+  .password-lock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+  }
+  .password-lock-inner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    max-width: 340px;
+    width: 100%;
+  }
+
+  .tab-nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--textDim);
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab-btn.active {
+    color: var(--accent2);
+    border-bottom-color: var(--accent2);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .dashboard-card {
+    background: var(--surface);
+    padding: 20px;
+    border-radius: var(--radius);
+  }
+  .dash-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--textDim);
+    margin-bottom: 4px;
+  }
+  .dash-value {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  .dash-value.gold { color: var(--gold); }
+  .dash-sub {
+    font-size: 0.8rem;
+    color: var(--textDim);
+  }
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--textDim);
+    padding: 0 2px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent2);
+    cursor: pointer;
+  }
+
+  .next-matches-list { display: flex; flex-direction: column; gap: 8px; }
+  .next-match-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    border-left: 3px solid var(--accent);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .next-match-item.soon { border-left-color: var(--gold); }
+  .next-match-teams { font-weight: 600; }
+  .next-match-info { font-size: 0.8rem; color: var(--textDim); }
+  .next-match-countdown { font-size: 0.85rem; color: var(--accent2); font-weight: 600; }
+
+  .tipps-list { display: flex; flex-direction: column; gap: 16px; }
+  .tipp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: border-color 0.15s;
+  }
+  .tipp-card:hover { border-color: var(--accent2); }
+  .tipp-card.today { border-left: 4px solid var(--gold); }
+  .tipp-card.finished { opacity: 0.6; }
+  .tipp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .tipp-teams { font-size: 1.1rem; font-weight: 600; }
+  .tipp-date { font-size: 0.8rem; color: var(--textDim); }
+  .tipp-analysis {
+    font-size: 0.85rem;
+    color: var(--textDim);
+    line-height: 1.6;
+    margin-bottom: 12px;
+    padding: 10px;
+    background: rgba(42,58,92,0.15);
+    border-radius: 6px;
+  }
+  .tipp-analysis strong { color: var(--text); }
+  .tipp-recommendation {
+    display: inline-block;
+    background: rgba(0,200,83,0.1);
+    border: 1px solid rgba(0,200,83,0.3);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+  .tipp-recommendation .conf { font-weight: 400; font-size: 0.8rem; color: var(--gold); }
+  .tipp-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .tipp-input-row input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 1rem;
+    width: 80px;
+    text-align: center;
+    font-family: monospace;
+    font-weight: 700;
+  }
+  .tipp-input-row input:focus { border-color: var(--accent2); outline: none; }
+  .tipp-saved { color: var(--green); font-size: 0.8rem; }
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--textDim);
+    padding: 4px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .filter-btn.active { background: var(--accent2); border-color: var(--accent2); color: #000; }
+
+  .gruppen-list { display: grid; gap: 16px; }
+  .group-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .group-title { font-weight: 700; margin-bottom: 8px; font-size: 1rem; }
+  .group-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .group-table th {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--textDim);
+  }
+  .group-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(42,58,92,0.3);
+  }
+  .group-table .qual { border-left: 3px solid var(--green); }
+  .group-table .maybe { border-left: 3px solid #ffa726; }
+  .group-table .out { border-left: 3px solid var(--red); opacity: 0.5; }
+
+  .round-section { margin-bottom: 24px; }
+  .round-title { font-weight: 700; margin-bottom: 12px; font-size: 1rem; color: var(--accent2); }
+  .ko-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+  }
+  .ko-match {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 0.85rem;
+  }
+  .ko-match .teams { font-weight: 600; margin-bottom: 4px; }
+  .ko-match .conf { font-size: 0.75rem; }
+  .conf-high { color: var(--green); }
+  .conf-medium { color: #ffa726; }
+  .conf-low { color: var(--red); }
+  .conf-speculative { color: var(--textDim); }
+
+  .arrow-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 4px 0;
+    font-size: 0.85rem;
+  }
+  .arrow-flow .arrow { color: var(--textDim); }
+
+  #weltmeister-content .fr-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  #weltmeister-content .fr-form { font-size: 0.9rem; margin-bottom: 8px; }
+  #weltmeister-content .fr-path { margin-top: 12px; }
+  .path-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background: rgba(42,58,92,0.15);
+  }
+  .path-step .round-label { font-weight: 600; min-width: 100px; }
+  .path-step .opponent { color: var(--textDim); }
+  .path-step.warning { border-left: 3px solid var(--red); }
+  .path-step.safe { border-left: 3px solid var(--green); }
+
+  @media (max-width: 640px) {
+    .tab-btn { font-size: 0.75rem; padding: 8px 10px; }
+    .dashboard-cards { grid-template-columns: 1fr 1fr; }
+    .tipp-teams { font-size: 0.95rem; }
+    .ko-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+(function() {
+  // Load embedded data
+  const dataEl = document.getElementById('assistant-data');
+  if (!dataEl) return;
+  const DATA = JSON.parse(dataEl.textContent);
+
+  const { fixtures, groups, results, rankings, odds, hosts, letters } = DATA;
+  const GROUP_NAMES = {
+    A:'Group A',B:'Group B',C:'Group C',D:'Group D',E:'Group E',F:'Group F',
+    G:'Group G',H:'Group H',I:'Group I',J:'Group J',K:'Group K',L:'Group L'
+  };
+
+  // Flag emoji mapping
+  const FLAGS = {
+    'Mexico':'🇲🇽','South Africa':'🇿🇦','Korea Republic':'🇰🇷','Czechia':'🇨🇿',
+    'Canada':'🇨🇦','Bosnia and Herzegovina':'🇧🇦','Qatar':'🇶🇦','Switzerland':'🇨🇭',
+    'Brazil':'🇧🇷','Morocco':'🇲🇦','Haiti':'🇭🇹','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+    'USA':'🇺🇸','Paraguay':'🇵🇾','Australia':'🇦🇺','Türkiye':'🇹🇷',
+    'Germany':'🇩🇪','Curaçao':'🇨🇼',"Côte d'Ivoire":'🇨🇮','Ecuador':'🇪🇨',
+    'Netherlands':'🇳🇱','Japan':'🇯🇵','Sweden':'🇸🇪','Tunisia':'🇹🇳',
+    'Belgium':'🇧🇪','Egypt':'🇪🇬','Iran':'🇮🇷','New Zealand':'🇳🇿',
+    'Spain':'🇪🇸','Cabo Verde':'🇨🇻','Saudi Arabia':'🇸🇦','Uruguay':'🇺🇾',
+    'France':'🇫🇷','Senegal':'🇸🇳','Iraq':'🇮🇶','Norway':'🇳🇴',
+    'Argentina':'🇦🇷','Algeria':'🇩🇿','Austria':'🇦🇹','Jordan':'🇯🇴',
+    'Portugal':'🇵🇹','DR Congo':'🇨🇩','Uzbekistan':'🇺🇿','Colombia':'🇨🇴',
+    'England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Croatia':'🇭🇷','Ghana':'🇬🇭','Panama':'🇵🇦',
+  };
+
+  function flag(name) { return FLAGS[name] || '🏳️'; }
+  function teamName(letter, idx) { return groups[letter].teams[idx].name; }
+
+  // Check if a match is finished (has result)
+  function isFinished(fid) {
+    const r = results[fid];
+    return r && typeof r.homeScore === 'number' && typeof r.awayScore === 'number';
+  }
+
+  function getResult(fid) {
+    return results[fid] || null;
+  }
+
+  // Get form points from results
+  function getFormPoints(team, groupLetter) {
+    let pts = 0;
+    const grpFixtures = fixtures.filter(f => f.group === groupLetter);
+    for (const f of grpFixtures) {
+      const r = getResult(f.id);
+      if (!r) continue;
+      const isHome = team === teamName(f.group, f.homeIdx);
+      const isAway = team === teamName(f.group, f.awayIdx);
+      if (!isHome && !isAway) continue;
+      const homeScore = r.homeScore;
+      const awayScore = r.awayScore;
+      if (isHome && homeScore > awayScore) pts += 3;
+      else if (isAway && awayScore > homeScore) pts += 3;
+      else if (homeScore === awayScore) pts += 1;
+    }
+    return pts;
+  }
+
+  function getGoalsFor(team, groupLetter) {
+    let gf = 0;
+    const grpFixtures = fixtures.filter(f => f.group === groupLetter);
+    for (const f of grpFixtures) {
+      const r = getResult(f.id);
+      if (!r) continue;
+      const isHome = team === teamName(f.group, f.homeIdx);
+      const isAway = team === teamName(f.group, f.awayIdx);
+      if (!isHome && !isAway) continue;
+      if (isHome) gf += r.homeScore;
+      else gf += r.awayScore;
+    }
+    return gf;
+  }
+
+  function getGoalsAgainst(team, groupLetter) {
+    let ga = 0;
+    const grpFixtures = fixtures.filter(f => f.group === groupLetter);
+    for (const f of grpFixtures) {
+      const r = getResult(f.id);
+      if (!r) continue;
+      const isHome = team === teamName(f.group, f.homeIdx);
+      const isAway = team === teamName(f.group, f.awayIdx);
+      if (!isHome && !isAway) continue;
+      if (isHome) ga += r.awayScore;
+      else ga += r.homeScore;
+    }
+    return ga;
+  }
+
+  // ============ VENUE TO COUNTRY ============
+  function getVenueCountry(venue) {
+    if (!venue) return null;
+    const v = venue.toLowerCase();
+    if (v.includes('mexico city') || v.includes('guadalajara') || v.includes('monterrey')) return 'Mexico';
+    if (v.includes('toronto') || v.includes('vancouver') || v.includes('edmonton')) return 'Canada';
+    if (v.includes('atlanta') || v.includes('los angeles') || v.includes('san francisco') ||
+        v.includes('seattle') || v.includes('new york') || v.includes('new jersey') ||
+        v.includes('boston') || v.includes('philadelphia') || v.includes('miami') ||
+        v.includes('dallas') || v.includes('houston') || v.includes('kansas city')) return 'USA';
+    return null;
+  }
+
+  // ============ RECOMMENDATION ENGINE ============
+  function calculateRecommendation(homeTeam, awayTeam, groupLetter, isNeutral, venue) {
+    const rankDiff = homeTeam.rank - awayTeam.rank; // negative = home is better
+    const homeForm = getFormPoints(homeTeam.name, groupLetter);
+    const awayForm = getFormPoints(awayTeam.name, groupLetter);
+    const isHomeHost = hosts.includes(homeTeam.name);
+
+    // Odds lookup
+    function getOddsTier(name) {
+      const o = odds[name];
+      if (!o) return 0;
+      if (o.tier === 'favorite') return 3;
+      if (o.tier === 'contender') return 2;
+      if (o.tier === 'outsider') return 1;
+      return 0;
+    }
+    const oddsHome = getOddsTier(homeTeam.name);
+    const oddsAway = getOddsTier(awayTeam.name);
+    const oddsDiff = oddsHome - oddsAway;
+
+    // Home advantage: ONLY if host nation plays in its own country
+    const venueCountry = getVenueCountry(venue);
+    const isHomeVenue = venueCountry === homeTeam.name;
+    const homeAdv = (!isNeutral && isHomeHost && isHomeVenue) ? 5 : 0;
+
+    // Form factor: each form point = 1 rank position
+    const formDiff = (homeForm - awayForm);
+
+    // Effective rank diff with all factors
+    const effectiveRankDiff = rankDiff - homeAdv - oddsDiff - formDiff;
+
+    let winner, score, confidence, reasoning;
+    const reasons = [];
+
+    // Build reasoning
+    const diffStr = Math.abs(rankDiff);
+    if (rankDiff < 0) {
+      reasons.push(`${homeTeam.name} ist ${diffStr} Ränge besser (FIFA #${homeTeam.rank} vs #${awayTeam.rank})`);
+    } else if (rankDiff > 0) {
+      reasons.push(`${awayTeam.name} ist ${diffStr} Ränge besser (FIFA #${awayTeam.rank} vs #${homeTeam.rank})`);
+    } else {
+      reasons.push('Gleiches FIFA-Ranking');
+    }
+
+    if (!isNeutral && isHomeHost && isHomeVenue) reasons.push(`🏠 Heimvorteil: ${homeTeam.name} (Gastgeber, spielt im eigenen Land)`);
+    else if (isHomeHost && !isHomeVenue) reasons.push(`ℹ️ ${homeTeam.name} ist Gastgeber, spielt aber nicht im eigenen Land → kein Heimvorteil`);
+    if (oddsDiff > 0) reasons.push(`📈 Buchmacher-Quoten favorisieren ${homeTeam.name}`);
+    else if (oddsDiff < 0) reasons.push(`📈 Buchmacher-Quoten favorisieren ${awayTeam.name}`);
+
+    const formStr = `${homeTeam.name}: ${homeForm}P, ${awayTeam.name}: ${awayForm}P`;
+    reasons.push(`Form: ${formStr}`);
+
+    const gfHome = getGoalsFor(homeTeam.name, groupLetter);
+    const gaHome = getGoalsAgainst(homeTeam.name, groupLetter);
+    const gfAway = getGoalsFor(awayTeam.name, groupLetter);
+    const gaAway = getGoalsAgainst(awayTeam.name, groupLetter);
+    if (isFinished(`${groupLetter}_01`) || isFinished(`${groupLetter}_02`)) {
+      reasons.push(`Tore: ${homeTeam.name} ${gfHome}:${gaHome}, ${awayTeam.name} ${gfAway}:${gaAway}`);
+    }
+
+    if (effectiveRankDiff <= -20) {
+      winner = homeTeam.name;
+      score = '3-0';
+      confidence = '⭐⭐⭐';
+      reasons.push('Klare Rang-Differenz → hohe Wahrscheinlichkeit für deutlichen Sieg');
+    } else if (effectiveRankDiff <= -10) {
+      winner = homeTeam.name;
+      score = '2-0';
+      confidence = '⭐⭐';
+      reasons.push('Deutlicher Favorit → 2:0 ist das typischste Ergebnis');
+    } else if (effectiveRankDiff <= -3) {
+      winner = homeTeam.name;
+      score = '2-1';
+      confidence = '⭐⭐';
+      reasons.push('Leichter Favorit → knapper Sieg erwartet');
+    } else if (effectiveRankDiff <= 2) {
+      if (!isNeutral && isHomeHost && homeForm >= awayForm) {
+        winner = homeTeam.name;
+        score = '2-1';
+        confidence = '⭐⭐';
+        reasons.push('Ausgeglichen, aber Heimvorteil + Form geben den Ausschlag');
+      } else if (Math.abs(homeForm - awayForm) <= 1 && (homeForm > 0 || awayForm > 0)) {
+        winner = 'draw';
+        score = '1-1';
+        confidence = '⭐';
+        reasons.push('Sehr ausgeglichen → Unentschieden wahrscheinlich');
+      } else if (homeForm > awayForm) {
+        winner = homeTeam.name;
+        score = '2-1';
+        confidence = '⭐';
+        reasons.push('Ausgeglichenes Ranking, aber bessere Form für ' + homeTeam.name);
+      } else {
+        winner = awayTeam.name;
+        score = '1-2';
+        confidence = '⭐';
+        reasons.push('Ausgeglichenes Ranking, aber bessere Form für ' + awayTeam.name);
+      }
+    } else if (effectiveRankDiff <= 10) {
+      winner = awayTeam.name;
+      score = '1-2';
+      confidence = '⭐⭐';
+      reasons.push(`${awayTeam.name} ist leichter Favorit`);
+    } else if (effectiveRankDiff <= 20) {
+      winner = awayTeam.name;
+      score = '0-2';
+      confidence = '⭐⭐';
+      reasons.push(`${awayTeam.name} ist deutlicher Favorit`);
+    } else {
+      winner = awayTeam.name;
+      score = '0-3';
+      confidence = '⭐⭐⭐';
+      reasons.push(`${awayTeam.name} ist klarer Favorit`);
+    }
+
+    reasoning = reasons.join('. ');
+    return { winner, score, confidence, reasoning };
+  }
+
+  // ============ GROUP STANDINGS ============
+  function computeGroupStandings(letter) {
+    const grp = groups[letter];
+    const standings = grp.teams.map(t => {
+      const name = t.name;
+      const gf = getGoalsFor(name, letter);
+      const ga = getGoalsAgainst(name, letter);
+      const played = fixtures.filter(f => f.group === letter && isFinished(f.id)).length / 2;
+      const form = getFormPoints(name, letter);
+      return {
+        name, rank: t.rank,
+        played: fixtures.filter(f => f.group === letter).filter(f => isFinished(f.id)).filter(f => teamName(letter, f.homeIdx) === name || teamName(letter, f.awayIdx) === name).length,
+        pts: form,
+        gf, ga, gd: gf - ga,
+      };
+    });
+
+    // Sort: pts > gd > gf
+    standings.sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      if (b.gd !== a.gd) return b.gd - a.gd;
+      if (b.gf !== a.gf) return b.gf - a.gf;
+      return a.rank - b.rank;
+    });
+    return standings;
+  }
+
+  // ============ TODAY'S MATCHES ============
+  function getTodaysFixtures() {
+    return fixtures.filter(f => {
+      const s = f.date;
+      return s === 'Jun 18' || s === 'Jun 18';
+    });
+  }
+
+  function getUpcomingFixtures() {
+    const today = new Date();
+    return fixtures.filter(f => !isFinished(f.id));
+  }
+
+  function getNextMatchdays(count) {
+    const unfinished = fixtures.filter(f => !isFinished(f.id));
+    const dateOrder = ['Jun 18','Jun 19','Jun 20','Jun 21','Jun 22','Jun 23','Jun 24','Jun 25','Jun 26','Jun 27'];
+    unfinished.sort((a, b) => dateOrder.indexOf(a.date) - dateOrder.indexOf(b.date) || a.id.localeCompare(b.id));
+    return unfinished.slice(0, count);
+  }
+
+  // ============ PASSWORD ============
+  function setupPassword() {
+    function unlock() {
+      const pw = document.getElementById('password-input').value;
+      if (pw === 'Dani-123!') {
+        document.getElementById('password-lock').style.display = 'none';
+        document.getElementById('assistant-content').style.display = 'block';
+        sessionStorage.setItem('assistant_unlocked', '1');
+      } else {
+        document.getElementById('password-error').style.display = 'inline';
+      }
+    }
+    document.getElementById('unlock-btn').addEventListener('click', unlock);
+    document.getElementById('password-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') unlock();
+    });
+    if (sessionStorage.getItem('assistant_unlocked') === '1') {
+      document.getElementById('password-lock').style.display = 'none';
+      document.getElementById('assistant-content').style.display = 'block';
+    }
+  }
+
+  // ============ TABS ============
+  function setupTabs() {
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+  }
+
+  // ============ DASHBOARD ============
+  function renderDashboard() {
+    const nextList = document.getElementById('next-matches');
+    const next5 = getNextMatchdays(5);
+    nextList.innerHTML = next5.map(f => {
+      const home = teamName(f.group, f.homeIdx);
+      const away = teamName(f.group, f.awayIdx);
+      const isToday = f.date === 'Jun 18';
+      return `<div class="next-match-item ${isToday ? 'soon' : ''}">
+        <div>
+          <div class="next-match-teams">${flag(home)} ${home} vs ${flag(away)} ${away}</div>
+          <div class="next-match-info">${f.date} · ${f.timeCEST} CEST · ${f.venue}</div>
+        </div>
+        <div class="next-match-countdown">${isToday ? '🔴 HEUTE' : f.date}</div>
+      </div>`;
+    }).join('');
+
+    // Prognosis slider
+    const slider = document.getElementById('prognosis-slider');
+    const valEl = document.getElementById('prognosis-value');
+    const subEl = document.getElementById('prognosis-sub');
+    const detailEl = document.getElementById('prognosis-detail');
+    const todayCount = getTodaysFixtures().length;
+
+    slider.max = todayCount;
+    function updatePrognosis(val) {
+      const newPts = 85 + parseInt(val) * 7;
+      valEl.textContent = newPts;
+      subEl.textContent = `${val}/${todayCount} richtige Tipps heute`;
+
+      // Compute new rank
+      const allRanks = rankings.map(r => ({ ...r }));
+      const daniIdx = allRanks.findIndex(r => r.name === 'Dani A');
+      if (daniIdx >= 0) {
+        allRanks[daniIdx].pts = newPts;
+      }
+      allRanks.sort((a, b) => b.pts - a.pts);
+      let newRank = 1;
+      for (let i = 0; i < allRanks.length; i++) {
+        if (allRanks[i].name === 'Dani A') {
+          newRank = i + 1;
+          break;
+        }
+      }
+      // Handle ties
+      let rankDisplay = newRank;
+      if (newRank > 1 && allRanks[newRank-2].pts === allRanks[newRank-1].pts) {
+        rankDisplay = newRank - 1;
+      }
+      const ptsGap = allRanks[0].pts - newPts;
+      detailEl.textContent = `→ Rang #${rankDisplay} (${ptsGap > 0 ? ptsGap + ' Pkt Rückstand auf Platz 1' : 'Platz 1! 🏆'})`;
+    }
+
+    slider.addEventListener('input', () => updatePrognosis(slider.value));
+    updatePrognosis(0);
+  }
+
+  // ============ TIPP ASSISTENT ============
+  function renderTipps() {
+    const list = document.getElementById('tipps-list');
+    const upcoming = fixtures.filter(f => !isFinished(f.id));
+    const dateOrder = ['Jun 18','Jun 19','Jun 20','Jun 21','Jun 22','Jun 23','Jun 24','Jun 25','Jun 26','Jun 27'];
+    upcoming.sort((a, b) => dateOrder.indexOf(a.date) - dateOrder.indexOf(b.date) || a.id.localeCompare(b.id));
+
+    function render(filter) {
+      let filtered = upcoming;
+      if (filter === 'today') filtered = upcoming.filter(f => f.date === 'Jun 18');
+      else if (filter === 'upcoming') filtered = upcoming.filter(f => f.date !== 'Jun 18');
+
+      list.innerHTML = filtered.map(f => {
+        const home = teamName(f.group, f.homeIdx);
+        const away = teamName(f.group, f.awayIdx);
+        const isToday = f.date === 'Jun 18';
+
+        const homeTeam = groups[f.group].teams[f.homeIdx];
+        const awayTeam = groups[f.group].teams[f.awayIdx];
+        const rec = calculateRecommendation(homeTeam, awayTeam, f.group, false, f.venue);
+
+        // Load saved tip from assistant localStorage
+        const saved = localStorage.getItem('assistant_tip_' + f.id);
+        const savedScore = saved || '';
+
+        const winnerLabel = rec.winner === 'draw' ? 'Unentschieden' : rec.winner;
+        const scoreDisplay = rec.winner === 'draw' ? rec.score : rec.score;
+
+        return `<div class="tipp-card ${isToday ? 'today' : ''}" data-fixture="${f.id}">
+          <div class="tipp-header">
+            <div class="tipp-teams">${flag(home)} ${home} vs ${flag(away)} ${away}</div>
+            <div class="tipp-date">${f.date} · ${f.timeCEST} CEST · ${f.group}</div>
+          </div>
+          <div class="tipp-analysis">${rec.reasoning}</div>
+          <div class="tipp-recommendation">💡 Empfehlung: ${flag(winnerLabel)} ${scoreDisplay} <span class="conf">${rec.confidence}</span></div>
+          <div class="tipp-input-row">
+            <span style="font-size:0.85rem">✏️ Mein Tipp:</span>
+            <input type="text" class="tipp-input" data-fid="${f.id}" placeholder="z.B. 2-1" value="${savedScore}" pattern="[0-9]-[0-9]" />
+            <button class="btn btn-sm btn-save-tip" data-fid="${f.id}">💾 Speichern</button>
+            <span class="tipp-saved" id="saved-${f.id}" style="display:${saved ? 'inline' : 'none'}">✅</span>
+          </div>
+        </div>`;
+      }).join('');
+
+      // Save tip handlers
+      document.querySelectorAll('.btn-save-tip').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const fid = this.dataset.fid;
+          const input = document.querySelector(`.tipp-input[data-fid="${fid}"]`);
+          const val = input.value.trim();
+          if (val && /^\d+-\d+$/.test(val)) {
+            localStorage.setItem('assistant_tip_' + fid, val);
+            document.getElementById('saved-' + fid).style.display = 'inline';
+          } else if (!val) {
+            localStorage.removeItem('assistant_tip_' + fid);
+            document.getElementById('saved-' + fid).style.display = 'none';
+          }
+        });
+      });
+
+      // Enter key
+      document.querySelectorAll('.tipp-input').forEach(inp => {
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            const fid = inp.dataset.fid;
+            const btn = document.querySelector(`.btn-save-tip[data-fid="${fid}"]`);
+            if (btn) btn.click();
+          }
+        });
+      });
+    }
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        render(this.dataset.filter);
+      });
+    });
+
+    render('all');
+
+    // Export tips
+    document.getElementById('export-tips-btn').addEventListener('click', function() {
+      const tips = {};
+      for (const f of fixtures) {
+        const saved = localStorage.getItem('assistant_tip_' + f.id);
+        if (saved) {
+          tips[f.id] = saved;
+        }
+      }
+      const blob = new Blob([JSON.stringify(tips, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'meine-tipps-2026.json';
+      a.click();
+    });
+  }
+
+  // ============ GRUPPEN ============
+  function renderGruppen() {
+    const list = document.getElementById('gruppen-list');
+    list.innerHTML = letters.map(letter => {
+      const grp = groups[letter];
+      const standings = computeGroupStandings(letter);
+      const maxGames = 3;
+      const rows = standings.map((s, i) => {
+        const cls = i < 2 ? 'qual' : (s.played < maxGames ? 'maybe' : 'out');
+        return `<tr class="${cls}">
+          <td>${i + 1}</td>
+          <td>${flag(s.name)} ${s.name}</td>
+          <td>${s.played}</td>
+          <td>${s.pts}</td>
+          <td>${s.gf}:${s.ga}</td>
+          <td>${s.gd > 0 ? '+' : ''}${s.gd}</td>
+        </tr>`;
+      }).join('');
+
+      const prognosis = standings.length >= 2
+        ? `<div style="margin-top:8px;font-size:0.82rem;padding:6px 10px;background:rgba(42,58,92,0.12);border-radius:4px">
+            <strong>🔮 Prognose:</strong> ${flag(standings[0].name)} ${standings[0].name} (${standings[0].pts}P) → <strong>Erster</strong>
+            · ${flag(standings[1].name)} ${standings[1].name} (${standings[1].pts}P) → <strong>Zweiter</strong>
+            ${standings[2] ? `· ${flag(standings[2].name)} ${standings[2].name} (${standings[2].pts}P) → ${standings[2].played < 3 ? '🟡 noch im Rennen' : '🔘 Dritter'}` : ''}
+          </div>`
+        : '';
+
+      return `<div class="group-card">
+        <div class="group-title">${GROUP_NAMES[letter]} — ${grp.name}</div>
+        <table class="group-table">
+          <thead><tr>
+            <th>#</th><th>Team</th><th>Sp.</th><th>Pkt</th><th>Tore</th><th>Diff</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${prognosis}
+      </div>`;
+    }).join('');
+  }
+
+  // ============ WELTMEISTER ============
+  function renderWeltmeister() {
+    const el = document.getElementById('weltmeister-content');
+    const frGroup = 'I';
+    const frStandings = computeGroupStandings(frGroup);
+    const frEntry = frStandings.find(s => s.name === 'France');
+    const frPos = frEntry ? frStandings.indexOf(frEntry) + 1 : 1;
+    const frForm = getFormPoints('France', frGroup);
+
+    // Check next opponent in group
+    const frFixtures = fixtures.filter(f => f.group === frGroup && !isFinished(f.id));
+    const nextFrMatch = frFixtures.length > 0 ? frFixtures[0] : null;
+
+    let nextOpp = '';
+    let nextDate = '';
+    if (nextFrMatch) {
+      const oppIdx = teamName(frGroup, nextFrMatch.homeIdx) === 'France' ? nextFrMatch.awayIdx : nextFrMatch.homeIdx;
+      nextOpp = teamName(frGroup, oppIdx);
+      nextDate = nextFrMatch.date;
+    }
+
+    // KO path for France - simplified
+    // France (winner I) → R32_05 (vs 3rd from C/D/F/G/H) → R16_02 → QF_01 → SF_01 → FINAL
+    const koPath = [
+      { round: 'Achtelfinale', opponent: '3. Platz (C/D/F/G/H)', conf: 'hoch', safe: true },
+      { round: 'Viertelfinale', opponent: 'Sieger 1K vs 2L', conf: 'mittel', safe: true },
+      { round: 'Halbfinale', opponent: 'Sieger obere Hälfte', conf: 'niedrig', safe: false },
+      { round: 'Finale', opponent: 'Sieger untere Hälfte', conf: 'spekulativ', safe: false },
+    ];
+
+    const isTop = frPos <= 2;
+    const frOdds = odds['France'];
+
+    el.innerHTML = `
+      <div class="fr-card">
+        <div class="fr-form">
+          <strong>${flag('France')} Frankreich</strong> — FIFA #1 · ${frForm} Pkt nach 1 Spiel · Gruppenplatz #${frPos}
+        </div>
+        <div style="margin-bottom:12px">
+          <span style="font-size:0.85rem">Buchmacher-Quote: +${frOdds ? frOdds.american : '?'} (${frOdds ? Math.round(frOdds.probability * 100) : '?'}% impl. Wahrscheinlichkeit)</span>
+          <span style="margin-left:12px;font-size:0.85rem;color:var(--green)">📊 Form: 3:1 vs Senegal ✅</span>
+        </div>
+        ${nextFrMatch ? `<div style="padding:8px 12px;background:rgba(42,58,92,0.15);border-radius:6px;margin-bottom:12px">
+          <strong>Nächstes Spiel:</strong> ${flag('France')} Frankreich vs ${flag(nextOpp)} ${nextOpp} (${nextDate})
+        </div>` : ''}
+        ${!isTop ? `<div style="padding:8px 12px;background:rgba(255,23,68,0.1);border:1px solid rgba(255,23,68,0.3);border-radius:6px;margin-bottom:12px">
+          ⚠️ Frankreich liegt aktuell nicht auf Qualifikationsplatz! ${frStandings.map((s,i) => `${i+1}. ${flag(s.name)} ${s.name} (${s.pts}P)`).join(' → ')}
+        </div>` : ''}
+        <div class="fr-path">
+          <strong>Frankreichs K.o.-Weg:</strong>
+          ${koPath.map(p => `
+            <div class="path-step ${p.safe ? 'safe' : 'warning'}">
+              <span class="round-label">${p.round}</span>
+              <span class="opponent">vs ${p.opponent}</span>
+              <span style="margin-left:auto;font-size:0.75rem;color:var(--textDim)">Konfidenz: ${p.conf}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="fr-card">
+        <strong>Gruppe I — Aktueller Stand:</strong>
+        <table class="group-table" style="margin-top:8px">
+          <thead><tr><th>#</th><th>Team</th><th>Sp.</th><th>Pkt</th><th>Tore</th><th>Diff</th></tr></thead>
+          <tbody>${frStandings.map((s,i) => {
+            const isFr = s.name === 'France';
+            return `<tr class="${isFr ? 'qual' : (i < 2 ? 'qual' : (s.played < 3 ? 'maybe' : 'out'))}">
+              <td>${i + 1}</td>
+              <td>${flag(s.name)} ${s.name}${isFr ? ' ⭐' : ''}</td>
+              <td>${s.played}</td>
+              <td>${s.pts}</td>
+              <td>${s.gf}:${s.ga}</td>
+              <td>${s.gd > 0 ? '+' : ''}${s.gd}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // ============ K.O.-PHASE ============
+  function renderKO() {
+    const el = document.getElementById('ko-content');
+
+    // Simplified KO predictions based on current standings + recommendations
+    function getGroupQualifiers(letter) {
+      const s = computeGroupStandings(letter);
+      return { winner: s[0]?.name || '?', runnerUp: s[1]?.name || '?', third: s[2]?.name || '?' };
+    }
+
+    const quals = {};
+    letters.forEach(l => { quals[l] = getGroupQualifiers(l); });
+
+    // R32 pairings (simplified)
+    const r32 = [
+      { id: 'R32-1', home: `2. ${quals.A.runnerUp}`, away: `2. ${quals.B.runnerUp}` },
+      { id: 'R32-2', home: `1. ${quals.E.winner}`, away: `3. (Gruppe A/B/C/D/F)` },
+      { id: 'R32-3', home: `1. ${quals.C.winner}`, away: `2. ${quals.F.runnerUp}` },
+      { id: 'R32-4', home: `1. ${quals.F.winner}`, away: `2. ${quals.C.runnerUp}` },
+      { id: 'R32-5', home: `1. ${quals.I.winner}`, away: `3. (Gruppe C/D/F/G/H)` },
+      { id: 'R32-6', home: `2. ${quals.E.runnerUp}`, away: `2. ${quals.I.runnerUp}` },
+      { id: 'R32-7', home: `1. ${quals.A.winner}`, away: `3. (Gruppe C/E/F/H/I)` },
+      { id: 'R32-8', home: `1. ${quals.L.winner}`, away: `3. (Gruppe E/H/I/J/K)` },
+      { id: 'R32-9', home: `1. ${quals.D.winner}`, away: `3. (Gruppe B/E/F/I/J)` },
+      { id: 'R32-10', home: `1. ${quals.G.winner}`, away: `3. (Gruppe A/E/H/I/J)` },
+      { id: 'R32-11', home: `2. ${quals.K.runnerUp}`, away: `2. ${quals.L.runnerUp}` },
+      { id: 'R32-12', home: `1. ${quals.H.winner}`, away: `2. ${quals.J.runnerUp}` },
+      { id: 'R32-13', home: `1. ${quals.B.winner}`, away: `3. (Gruppe E/F/G/I/J)` },
+      { id: 'R32-14', home: `1. ${quals.J.winner}`, away: `2. ${quals.H.runnerUp}` },
+      { id: 'R32-15', home: `1. ${quals.K.winner}`, away: `3. (Gruppe D/E/I/J/L)` },
+      { id: 'R32-16', home: `2. ${quals.D.runnerUp}`, away: `2. ${quals.G.runnerUp}` },
+    ];
+
+    function confClass(conf) { return 'conf-' + conf.toLowerCase(); }
+
+    // Predict winner based on current standings
+    function predictWinner(home, away) {
+      // simplified: just use the first team if they're a group winner
+      if (home.startsWith('1.')) return { winner: home.replace('1. ',''), conf: 'Hoch' };
+      return { winner: home, conf: 'Mittel' };
+    }
+
+    el.innerHTML = `
+      <p style="margin-bottom:16px;font-size:0.85rem;color:var(--textDim)">
+        Prognose basierend auf aktuellen Gruppentabellen nach Matchday 1. Drittplatzierte werden nach dem 8-Besten-Verfahren zugeordnet.
+        ${flag('France')} <strong>Frankreichs Weg:</strong> 1. Gruppe I → Achtelfinale vs 3. Platz → Viertelfinale vs Sieger 1K/2L.
+      </p>
+      <div class="round-section">
+        <div class="round-title">🔵 Achtelfinale (R32)</div>
+        <div class="ko-grid">
+          ${r32.map(m => {
+            const home = m.home.replace(/^\d+\.\s*/, '');
+            const away = m.away.replace(/^\d+\.\s*/, '');
+            const isFr = home === 'France' || away === 'France';
+            return `<div class="ko-match" style="${isFr ? 'border-color:var(--gold)' : ''}">
+              <div class="teams">${flag(home)} ${home} vs ${flag(away)} ${away}</div>
+              ${isFr ? '<div style="color:var(--gold);font-size:0.75rem">⭐ Frankreich betroffen</div>' : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="round-section">
+        <div class="round-title">🟠 Frankreichs K.o.-Weg im Detail</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div class="arrow-flow">
+            <span style="font-weight:700">${flag('France')} Frankreich</span>
+            <span class="arrow">→</span>
+            <span>vs 3. Platz (Gruppe C/D/F/G/H)</span>
+            <span class="arrow">→</span>
+            <span>${flag(quals.K.winner)} ${quals.K.winner} / ${flag(quals.L.runnerUp)} ${quals.L.runnerUp}</span>
+            <span class="arrow">→</span>
+            <span>Sieger obere Hälfte</span>
+            <span class="arrow">→</span>
+            <span>🏆 Finale</span>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
+            <span style="font-size:0.8rem;padding:4px 10px;border-radius:4px;background:rgba(0,200,83,0.1);color:var(--green)">● Hoch = Gruppensieger</span>
+            <span style="font-size:0.8rem;padding:4px 10px;border-radius:4px;background:rgba(255,167,38,0.1);color:#ffa726">● Mittel = Zweiter</span>
+            <span style="font-size:0.8rem;padding:4px 10px;border-radius:4px;background:rgba(255,23,68,0.1);color:var(--red)">● Niedrig = Dritter/unsicher</span>
+            <span style="font-size:0.8rem;padding:4px 10px;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--textDim)">● Spekulativ = weit entfernt</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ============ INIT ============
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Assistent] Init start — fixtures:', fixtures.length, 'results:', Object.keys(results).length);
+    try {
+      setupPassword();
+      setupTabs();
+      renderDashboard();
+      renderTipps();
+      renderGruppen();
+      renderWeltmeister();
+      renderKO();
+      console.log('[Assistent] Alle Tabs gerendert ✅');
+    } catch (e) {
+      console.error('[Assistent] Fehler:', e.message, e.stack);
+    }
+  });
+})();
+</script>

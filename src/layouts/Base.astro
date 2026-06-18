@@ -20,6 +20,7 @@ import '../styles/global.css';
         <a href="/teams" class="nav-link">Squads</a>
         <a href="/trivia" class="nav-link">Trivia</a>
         <a href="/baseline" class="nav-link">Baseline</a>
+        <a href="/assistant" class="nav-link">Assistent</a>
       </div>
     </div>
   </nav>
@@ -32,6 +33,11 @@ import '../styles/global.css';
   <div class="apparition llama" style="top:50%;right:0">🦙</div>
   <div class="apparition burger" style="bottom:24px;left:24px">🍔</div>
   <div class="apparition party" style="bottom:24px;right:24px">🎉</div>
+  <div class="apparition messi" style="top:18%;left:0"><img src="/images/cartoons/messi.png" width="52" height="86" alt="Messi"></div>
+  <div class="apparition ronalda" style="top:32%;right:0"><img src="/images/cartoons/ronaldo.png" width="52" height="75" alt="Ronaldo"></div>
+  <div class="apparition kane" style="top:68%;left:0"><img src="/images/cartoons/kane.png" width="52" height="85" alt="Kane"></div>
+  <div class="apparition haaland" style="top:44%;right:0"><img src="/images/cartoons/haaland.png" width="52" height="78" alt="Haaland"></div>
+  <div class="apparition mbappe" style="bottom:64px;left:50%"><img src="/images/cartoons/mbappe.png" width="52" height="82" alt="Mbappé"></div>
   <div class="click-hint">👆 click an emoji</div>
 <script>
 document.querySelectorAll('.apparition').forEach(el => {
@@ -57,6 +63,46 @@ document.querySelectorAll('.apparition').forEach(el => {
         { transform: 'translate(80px, -180px) scale(0.3) rotate(-1080deg)', opacity: 0 },
       ], { duration: 700, easing: 'ease-out', fill: 'forwards' });
       a.onfinish = () => reset(this);
+    } else if (cls === 'messi') {
+      const a = this.animate([
+        { transform: 'scale(1) translate(0,0)', opacity: 1 },
+        { transform: 'scale(1.4) translate(20px,-30px)', opacity: 0.8 },
+        { transform: 'scale(0.6) translate(-30px,-80px)', opacity: 0.4 },
+        { transform: 'scale(0.2) translate(40px,-150px)', opacity: 0 },
+      ], { duration: 800, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    } else if (cls === 'ronalda') {
+      const a = this.animate([
+        { transform: 'scale(1) rotate(0deg)', opacity: 1 },
+        { transform: 'scale(1.5) rotate(-180deg)', opacity: 0.7 },
+        { transform: 'scale(0.8) rotate(-360deg)', opacity: 0.3, offset: 0.6 },
+        { transform: 'scale(0) rotate(-540deg) translateY(-120px)', opacity: 0 },
+      ], { duration: 750, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    } else if (cls === 'kane') {
+      const a = this.animate([
+        { transform: 'scale(1) rotate(0deg) translate(0,0)', opacity: 1 },
+        { transform: 'scale(1.6) rotate(15deg) translate(40px,-20px)', opacity: 0.7 },
+        { transform: 'scale(0.5) rotate(-10deg) translate(-20px,-60px)', opacity: 0.3 },
+        { transform: 'scale(0.1) rotate(30deg) translate(80px,-120px)', opacity: 0 },
+      ], { duration: 650, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    } else if (cls === 'haaland') {
+      const a = this.animate([
+        { transform: 'scale(1) skewX(0deg)', opacity: 1 },
+        { transform: 'scale(1.5) skewX(-15deg)', opacity: 0.8 },
+        { transform: 'scale(0.7) skewX(10deg)', opacity: 0.4 },
+        { transform: 'scale(0) skewX(-20deg) translateY(-100px)', opacity: 0 },
+      ], { duration: 600, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
+    } else if (cls === 'mbappe') {
+      const a = this.animate([
+        { transform: 'scale(1)', opacity: 1 },
+        { transform: 'scale(1.7) translate(-10px,-20px)', opacity: 0.7 },
+        { transform: 'scale(0.4) translate(30px,-50px)', opacity: 0.3 },
+        { transform: 'scale(0) translate(-40px,-120px)', opacity: 0 },
+      ], { duration: 700, easing: 'ease-out', fill: 'forwards' });
+      a.onfinish = () => reset(this);
     } else {
       const a = this.animate([
         { transform: 'scale(1)', opacity: 1 },
@@ -77,6 +123,11 @@ document.querySelectorAll('.apparition').forEach(el => {
       llama: { count: 50, colors: ['#ff0','#f0f','#0ff','#f00','#0f0','#00f'], life: 900, spread: 180, confetti: true },
       burger: { count: 25, colors: ['#ffd700','#fff8dc','#ffd700'], life: 700, spread: 130, star: true },
       party: { count: 60, colors: ['#ff0','#f0f','#0ff','#f00','#0f0','#00f','#ff8c00','#fff'], life: 1000, spread: 250, confetti: true },
+      messi: { count: 40, colors: ['#75aadb','#fff','#ffd700','#000080'], life: 1000, spread: 200, confetti: true },
+      ronalda: { count: 45, colors: ['#ff0','#da291c','#006600','#ffd700'], life: 950, spread: 190, confetti: true },
+      kane: { count: 30, colors: ['#ffd700','#fff','#c8102e','#1d2b64'], life: 850, spread: 170, star: true },
+      haaland: { count: 55, colors: ['#f0f','#0ff','#ff0','#fff'], life: 800, spread: 220, confetti: true },
+      mbappe: { count: 35, colors: ['#002395','#fff','#ed2939','#00d2ff'], life: 900, spread: 180, star: true },
     };
 
     const cfg = configs[cls] || configs.party;
@@ -263,5 +314,59 @@ document.querySelectorAll('.apparition').forEach(el => {
     84% { opacity: 1; transform: scale(1.1) rotate(8deg); }
     89% { opacity: 1; transform: scale(1.2) rotate(-5deg); }
     94% { opacity: 0; transform: scale(0) rotate(0deg); }
+  }
+
+  .messi { animation: pop-messi 37s ease-in-out infinite; }
+  .ronalda { animation: pop-ronalda 41s ease-in-out infinite; }
+  .kane { animation: pop-kane 49s ease-in-out infinite; }
+  .haaland { animation: pop-haaland 31s ease-in-out infinite; }
+  .mbappe { animation: pop-mbappe 43s ease-in-out infinite; }
+
+  @keyframes pop-messi {
+    0%, 73%, 100% { opacity: 0; transform: translateX(-80px) scale(0.3); }
+    76% { opacity: 1; transform: translateX(10px) scale(0.9) rotate(-4deg); }
+    79% { opacity: 1; transform: translateX(30px) scale(1) rotate(3deg); }
+    82% { opacity: 1; transform: translateX(15px) scale(1.1) rotate(-6deg); }
+    85% { opacity: 1; transform: translateX(25px) scale(1) rotate(4deg); }
+    88% { opacity: 1; transform: translateX(18px) scale(1.05) rotate(-2deg); }
+    91% { opacity: 0; transform: translateX(-80px) scale(0.3); }
+  }
+
+  @keyframes pop-ronalda {
+    0%, 70%, 100% { opacity: 0; transform: translateX(80px) scale(0.3) rotate(30deg); }
+    73% { opacity: 1; transform: translateX(-15px) scale(1) rotate(0deg); }
+    76% { opacity: 1; transform: translateX(-5px) scale(1.2) rotate(-10deg); }
+    79% { opacity: 1; transform: translateX(-15px) scale(1) rotate(5deg); }
+    82% { opacity: 1; transform: translateX(-8px) scale(1.15) rotate(-8deg); }
+    85% { opacity: 1; transform: translateX(-12px) scale(1.05) rotate(3deg); }
+    90% { opacity: 0; transform: translateX(80px) scale(0.3) rotate(30deg); }
+  }
+
+  @keyframes pop-kane {
+    0%, 74%, 100% { opacity: 0; transform: translate(-60px, 40px) scale(0.2) rotate(-45deg); }
+    77% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+    80% { opacity: 1; transform: translate(10px, -15px) scale(1.15) rotate(10deg); }
+    83% { opacity: 1; transform: translate(5px, -5px) scale(1) rotate(-5deg); }
+    86% { opacity: 1; transform: translate(8px, -10px) scale(1.08) rotate(5deg); }
+    92% { opacity: 0; transform: translate(-60px, 40px) scale(0.2) rotate(-45deg); }
+  }
+
+  @keyframes pop-haaland {
+    0%, 68%, 100% { opacity: 0; transform: translateX(70px) scale(0.3); }
+    71% { opacity: 1; transform: translateX(-10px) scale(1) skewX(0deg); }
+    73% { opacity: 1; transform: translateX(5px) scale(1.15) skewX(-8deg); }
+    75% { opacity: 1; transform: translateX(-5px) scale(1) skewX(5deg); }
+    78% { opacity: 1; transform: translateX(3px) scale(1.1) skewX(-3deg); }
+    82% { opacity: 1; transform: translateX(-2px) scale(1.05) skewX(2deg); }
+    88% { opacity: 0; transform: translateX(70px) scale(0.3); }
+  }
+
+  @keyframes pop-mbappe {
+    0%, 66%, 100% { opacity: 0; transform: translate(-50%, 20px) scale(0.3); }
+    69% { opacity: 1; transform: translate(-50%, -5px) scale(1); }
+    72% { opacity: 1; transform: translate(-50%, 8px) scale(1.15) rotate(-3deg); }
+    75% { opacity: 1; transform: translate(-50%, -3px) scale(1) rotate(2deg); }
+    79% { opacity: 1; transform: translate(-50%, 4px) scale(1.1) rotate(-1deg); }
+    85% { opacity: 0; transform: translate(-50%, 20px) scale(0.3); }
   }
 </style>
