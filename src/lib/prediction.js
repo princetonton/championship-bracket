@@ -13,8 +13,10 @@ export function createRNG(seed) {
   };
 }
 
+const HOSTS = new Set(['Mexico', 'Canada', 'USA']);
+
 export function simulateMatch(homeTeam, awayTeam, rand) {
-  const homeAdvantage = 30;
+  const homeAdvantage = HOSTS.has(homeTeam.name) ? 30 : 0;
   const homeStrength = homeTeam.pts + homeAdvantage;
   const totalStrength = homeStrength + awayTeam.pts;
   const winProb = homeStrength / totalStrength;

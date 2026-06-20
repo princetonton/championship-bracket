@@ -80,6 +80,77 @@ const rankingData = JSON.stringify(rankingList);
 const oddsData = JSON.stringify(winnerOdds);
 const hostsData = JSON.stringify(hostNations);
 const lettersData = JSON.stringify(GROUP_LETTERS);
+
+const CODE_V1 = `function predictMatchScore(rankHome, rankAway, isKnockout, homeName) {
+  const isHost = ['Mexico','Canada','USA'].includes(homeName);
+  const effHome = isKnockout ? rankHome : rankHome - (isHost ? 3 : 0);
+  const gap = effHome - rankAway;
+  const absGap = Math.abs(gap);
+  let home, away;
+  if (absGap >= 20)      { home=3; away=0; }
+  else if (absGap >= 8)  { home=2; away=0; }
+  else if (absGap >= 3)  { home=2; away=1; }
+  else if (absGap >= 1)  { home=1; away=0; }
+  else                   { home=1; away=1; }
+  if (gap >= 0) return { homeScore: home, awayScore: away };
+  return { homeScore: away, awayScore: home };
+}`;
+
+const CODE_V3 = `function predictMatchScore(rankHome, rankAway, ptsHome, ptsAway, isKnockout, homeName) {
+  const HOSTS = ['Mexico','Canada','USA'];
+  const isHost = HOSTS.includes(homeName);
+  const lHome = 1.55 * (ptsHome/1579.7)**1.0 * (isKnockout ? 1.0 : (isHost ? 1.2 : 1.0));
+  const lAway = 1.55 * (ptsAway/1579.7)**1.0;
+  const ph = Array.from({length:11}, (_,i) => poissonProb(lHome, i));
+  const pa = Array.from({length:11}, (_,i) => poissonProb(lAway, i));
+  let pHW=0, pD=0, pAW=0, gdP={};
+  for(let h=0; h<=10; h++) for(let a=0; a<=10; a++) {
+    const p = ph[h] * pa[a];
+    if(h>a) pHW+=p; else if(h===a) pD+=p; else pAW+=p;
+    gdP[h-a] = (gdP[h-a]||0) + p;
+  }
+  let best=[1,1], bestEV=-1;
+  const oPts = isKnockout ? 10 : 5, gPts = isKnockout ? 2 : 1, dPts = isKnockout ? 6 : 3;
+  for(let h=0; h<=10; h++) for(let a=0; a<=10; a++) {
+    if(isKnockout && h===a) continue;
+    if(h===0 && a===0) continue;
+    const outP = h>a ? pHW : h===a ? pD : pAW;
+    const ev = oPts*outP + gPts*ph[h] + gPts*pa[a] + dPts*(gdP[h-a]||0);
+    if(ev > bestEV) { bestEV = ev; best = [h, a]; }
+  }
+  return { homeScore: best[0], awayScore: best[1] };
+}`;
+
+const CODE_V4 = `function predictMatchScore(rankHome, rankAway, ptsHome, ptsAway, isKnockout, homeName) {
+  const HOSTS = ['Mexico','Canada','USA'];
+  const isHost = HOSTS.includes(homeName);
+  // v4 heuristic: draw when |rank gap| <= 5 in group stage
+  if (!isKnockout) {
+    const gap = (rankHome - (isHost ? 3 : 0)) - rankAway;
+    if (Math.abs(gap) <= 5) return { homeScore: 1, awayScore: 1 };
+  }
+  // Otherwise: v3 Poisson EV
+  const lHome = 1.55 * (ptsHome/1579.7)**1.0 * (isKnockout ? 1.0 : (isHost ? 1.2 : 1.0));
+  const lAway = 1.2 * (ptsAway/1579.7)**2.0;
+  const ph = Array.from({length:11}, (_,i) => poissonProb(lHome, i));
+  const pa = Array.from({length:11}, (_,i) => poissonProb(lAway, i));
+  let pHW=0, pD=0, pAW=0, gdP={};
+  for(let h=0; h<=10; h++) for(let a=0; a<=10; a++) {
+    const p = ph[h]*pa[a];
+    if(h>a) pHW+=p; else if(h===a) pD+=p; else pAW+=p;
+    gdP[h-a] = (gdP[h-a]||0)+p;
+  }
+  let best=[1,1], bestEV=-1;
+  const oPts = isKnockout ? 10 : 5, gPts = isKnockout ? 2 : 1, dPts = isKnockout ? 6 : 3;
+  for(let h=0; h<=10; h++) for(let a=0; a<=10; a++) {
+    if(isKnockout && h===a) continue;
+    if(h===0 && a===0) continue;
+    const outP = h>a ? pHW : h===a ? pD : pAW;
+    const ev = oPts*outP + gPts*ph[h] + gPts*pa[a] + dPts*(gdP[h-a]||0);
+    if(ev > bestEV) { bestEV = ev; best = [h, a]; }
+  }
+  return { homeScore: best[0], awayScore: best[1] };
+}`;
 ---
 
 <Base>
@@ -117,6 +188,7 @@ const lettersData = JSON.stringify(GROUP_LETTERS);
         <button class="tab-btn" data-tab="gruppen">📋 Gruppen</button>
         <button class="tab-btn" data-tab="weltmeister">🏆 Weltmeister</button>
         <button class="tab-btn" data-tab="ko">⚔️ K.O.-Phase</button>
+        <button class="tab-btn" data-tab="modelle">🔬 Modelle</button>
       </div>
 
       <!-- Tab: Dashboard -->
@@ -205,6 +277,108 @@ const lettersData = JSON.stringify(GROUP_LETTERS);
           <h2 class="section-title">⚔️ K.O.-Phase-Prognose</h2>
           <p class="section-subtitle">Voraussichtliche Paarungen basierend auf aktuellen Tabellen und Empfehlungen.</p>
           <div id="ko-content"></div>
+        </section>
+      </div>
+
+      <!-- Tab: Modelle -->
+      <div id="tab-modelle" class="tab-content">
+        <section class="section">
+          <h2 class="section-title">🔬 Strategische Modelle: v1 vs v3 vs v4 (Heuristik)</h2>
+          <p class="section-subtitle">Vergleich der Vorhersage-Engines. Klicke auf "Vergleichen" um alle 104 Spiele (72 Gruppe + 32 K.O.) gegenüberzustellen.</p>
+
+          <div class="card" style="margin-bottom:16px">
+            <button class="btn btn-primary" id="compare-btn">🚀 Modelle vergleichen</button>
+            <span id="compare-status" style="color:var(--textDim);font-size:0.85rem;margin-left:12px"></span>
+          </div>
+
+          <details open style="margin-bottom:16px;background:var(--cardBg);border-radius:8px;padding:12px 16px;border:1px solid var(--border)">
+            <summary style="cursor:pointer;font-weight:700;color:var(--accent2);font-size:0.9rem">📖 Modell-Logik im Detail (anklicken)</summary>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px;font-size:0.8rem;line-height:1.6">
+              <div style="padding:12px;background:rgba(42,58,92,0.15);border-radius:6px">
+                <div style="font-weight:800;color:var(--accent2);margin-bottom:6px">🔹 v1 — Deterministic</div>
+                <div><strong>Eingabe:</strong> FIFA-Rangposition (1-85)</div>
+                <div><strong>Ansatz:</strong> Feste Score-Schwellen basierend auf Rangdifferenz</div>
+                <div style="margin-top:4px"><strong>Performance:</strong> 129 Pkt / 32 Spiele</div>
+                <details style="margin-top:8px;cursor:pointer">
+                  <summary style="font-weight:600;font-size:0.75rem;color:var(--accent2)">📄 Quellcode</summary>
+                  <div style="margin-top:6px;padding:8px;background:#1a1a2e;border-radius:4px;font-family:monospace;font-size:0.65rem;line-height:1.5;white-space:pre;overflow-x:auto" set:html={CODE_V1}></div>
+                </details>
+              </div>
+              <div style="padding:12px;background:rgba(42,58,92,0.15);border-radius:6px">
+                <div style="font-weight:800;color:var(--green);margin-bottom:6px">🔹 v3 — Probabilistic (Poisson EV)</div>
+                <div><strong>Eingabe:</strong> FIFA-Rangpunkte (1280-1880)</div>
+                <div><strong>Ansatz:</strong> Poisson-Verteilung der Tore, erwartete SRF-Punkte optimiert</div>
+                <div style="margin-top:4px"><strong>Performance:</strong> 128 Pkt / 32 Spiele</div>
+                <details style="margin-top:8px;cursor:pointer">
+                  <summary style="font-weight:600;font-size:0.75rem;color:var(--green)">📄 Quellcode</summary>
+                  <div style="margin-top:6px;padding:8px;background:#1a1a2e;border-radius:4px;font-family:monospace;font-size:0.65rem;line-height:1.5;white-space:pre;overflow-x:auto" set:html={CODE_V3}></div>
+                </details>
+              </div>
+              <div style="padding:12px;background:rgba(42,58,92,0.15);border-radius:6px">
+                <div style="font-weight:800;color:#a855f7;margin-bottom:6px">🔹 v4 — Heuristik (v3 + Draw-Regel)</div>
+                <div><strong>Eingabe:</strong> FIFA-Rangpunkte + Rangposition</div>
+                <div><strong>Ansatz:</strong> v3 Poisson EV + Draw-Heuristik bei |gap| ≤ 5</div>
+                <div style="margin-top:4px"><strong>Performance:</strong> 137 Pkt / 32 Spiele</div>
+                <div><strong>Unterschied zu v3:</strong> +9 Pkt durch Draw-Heuristik</div>
+                <details style="margin-top:8px;cursor:pointer">
+                  <summary style="font-weight:600;font-size:0.75rem;color:#a855f7">📄 Quellcode</summary>
+                  <div style="margin-top:6px;padding:8px;background:#1a1a2e;border-radius:4px;font-family:monospace;font-size:0.65rem;line-height:1.5;white-space:pre;overflow-x:auto" set:html={CODE_V4}></div>
+                </details>
+              </div>
+            </div>
+          </details>
+
+          <div id="compare-results" style="display:none">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+              <div class="card" id="v1-summary" style="padding:16px;text-align:center">
+                <h3 style="color:var(--accent2);margin-bottom:4px">Strategic Predictor v1</h3>
+                <div id="v1-summary-body"></div>
+              </div>
+              <div class="card" id="v3-summary" style="padding:16px;text-align:center">
+                <h3 style="color:var(--green);margin-bottom:4px">Probabilistic Predictor v3</h3>
+                <div id="v3-summary-body"></div>
+              </div>
+              <div class="card" id="v4-summary" style="padding:16px;text-align:center">
+                <h3 style="color:#a855f7;margin-bottom:4px">Heuristic Predictor v4</h3>
+                <div id="v4-summary-body"></div>
+              </div>
+            </div>
+
+            <h3 style="color:var(--text);margin-bottom:12px">📋 Gruppen-Vergleich</h3>
+            <div id="group-compare"></div>
+
+            <h3 style="color:var(--text);margin-bottom:12px;margin-top:24px">⚔️ K.O.-Phasen-Vergleich</h3>
+            <div id="ko-compare"></div>
+
+            <hr style="border:1px solid var(--border);margin:24px 0">
+
+            <h2 class="section-title" style="margin-bottom:4px">📦 Haupt-App Engines: prediction.js vs prediction4.js</h2>
+            <p class="section-subtitle">Vergleich der tatsächlich in der Haupt-App verwendeten Engines (alt vs neu).</p>
+
+            <div class="card" style="margin-bottom:16px">
+              <button class="btn btn-primary" id="compare-app-btn">🚀 Haupt-Engines vergleichen</button>
+              <span id="compare-app-status" style="color:var(--textDim);font-size:0.85rem;margin-left:12px"></span>
+            </div>
+
+            <div id="compare-app-results" style="display:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+                <div class="card" id="pred1-summary" style="padding:16px;text-align:center">
+                  <h3 style="color:var(--accent2);margin-bottom:4px">prediction.js (v1 — alt)</h3>
+                  <div id="pred1-summary-body"></div>
+                </div>
+                <div class="card" id="pred4-summary" style="padding:16px;text-align:center">
+                  <h3 style="color:#a855f7;margin-bottom:4px">prediction4.js (v4 — neu) ✅</h3>
+                  <div id="pred4-summary-body"></div>
+                </div>
+              </div>
+
+              <h3 style="color:var(--text);margin-bottom:12px">📋 Gruppen-Vergleich (Haupt-App)</h3>
+              <div id="group-compare-app"></div>
+
+              <h3 style="color:var(--text);margin-bottom:12px;margin-top:24px">⚔️ K.O.-Phasen-Vergleich (Haupt-App)</h3>
+              <div id="ko-compare-app"></div>
+            </div>
+          </div>
         </section>
       </div>
     </div>
@@ -495,11 +669,26 @@ const lettersData = JSON.stringify(GROUP_LETTERS);
   .path-step.warning { border-left: 3px solid var(--red); }
   .path-step.safe { border-left: 3px solid var(--green); }
 
+  .model-table { width:100%; border-collapse:collapse; font-size:0.78rem; margin-bottom:16px; }
+  .model-table th { text-align:left; padding:5px 8px; border-bottom:1px solid var(--border); color:var(--textDim); font-size:0.62rem; text-transform:uppercase; letter-spacing:0.5px; }
+  .model-table td { padding:4px 8px; border-bottom:1px solid rgba(42,58,92,0.2); }
+  .model-table .m-team { font-weight:500; }
+  .model-table .v1-sc { color:var(--accent2); font-weight:600; }
+  .model-table .v3-sc { color:var(--green); font-weight:600; }
+  .model-table .v4-sc { color:#a855f7; font-weight:600; }
+  .model-table .agree { color:var(--green); font-size:0.85rem; }
+  .model-table .disagree { color:var(--red); font-size:0.85rem; }
+  .model-table tr:hover { background:rgba(42,58,92,0.15); }
+  .model-group-title { font-size:0.95rem; font-weight:700; color:var(--accent2); margin-bottom:6px; padding-top:8px; }
+  .ko-compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .ko-round-title { font-size:0.85rem; font-weight:600; color:var(--text); margin-bottom:8px; padding:6px 10px; background:var(--surface2); border-radius:4px; }
+
   @media (max-width: 640px) {
     .tab-btn { font-size: 0.75rem; padding: 8px 10px; }
     .dashboard-cards { grid-template-columns: 1fr 1fr; }
     .tipp-teams { font-size: 0.95rem; }
     .ko-grid { grid-template-columns: 1fr; }
+    .ko-compare-grid { grid-template-columns: 1fr; }
   }
 </style>
 
@@ -667,58 +856,49 @@ const lettersData = JSON.stringify(GROUP_LETTERS);
       reasons.push(`Tore: ${homeTeam.name} ${gfHome}:${gaHome}, ${awayTeam.name} ${gfAway}:${gaAway}`);
     }
 
-    if (effectiveRankDiff <= -20) {
-      winner = homeTeam.name;
-      score = '3-0';
+    // Strategic Predictor v2.2 model: pure rank-gap with home advantage
+    const v22HomeAdv = isNeutral ? 0 : 3;
+    const v22Gap = (homeTeam.rank - v22HomeAdv) - awayTeam.rank;
+    const v22AbsGap = Math.abs(v22Gap);
+    const v22HomeFavored = v22Gap < 0;
+    const favored = v22HomeFavored ? homeTeam.name : awayTeam.name;
+    const underdog = v22HomeFavored ? awayTeam.name : homeTeam.name;
+
+    if (v22AbsGap >= 60) {
+      winner = favored;
+      score = v22HomeFavored ? '5-0' : '0-5';
       confidence = '⭐⭐⭐';
-      reasons.push('Klare Rang-Differenz → hohe Wahrscheinlichkeit für deutlichen Sieg');
-    } else if (effectiveRankDiff <= -10) {
-      winner = homeTeam.name;
-      score = '2-0';
+      reasons.push('Extreme Rang-Differenz → vernichtender Kantersieg erwartet');
+    } else if (v22AbsGap >= 50) {
+      winner = favored;
+      score = v22HomeFavored ? '4-0' : '0-4';
+      confidence = '⭐⭐⭐';
+      reasons.push('Sehr grosse Rang-Differenz → hoher Sieg mit Sauberem Blatt');
+    } else if (v22AbsGap >= 20) {
+      winner = favored;
+      score = v22HomeFavored ? '3-0' : '0-3';
+      confidence = '⭐⭐⭐';
+      reasons.push('Klare Rang-Differenz → dominanter Sieg erwartet');
+    } else if (v22AbsGap >= 8) {
+      winner = favored;
+      score = v22HomeFavored ? '2-0' : '0-2';
       confidence = '⭐⭐';
-      reasons.push('Deutlicher Favorit → 2:0 ist das typischste Ergebnis');
-    } else if (effectiveRankDiff <= -3) {
-      winner = homeTeam.name;
-      score = '2-1';
+      reasons.push('Deutlicher Favorit → komfortabler Sieg mit weisser Weste');
+    } else if (v22AbsGap >= 3) {
+      winner = favored;
+      score = v22HomeFavored ? '2-1' : '1-2';
       confidence = '⭐⭐';
-      reasons.push('Leichter Favorit → knapper Sieg erwartet');
-    } else if (effectiveRankDiff <= 2) {
-      if (!isNeutral && isHomeHost && homeForm >= awayForm) {
-        winner = homeTeam.name;
-        score = '2-1';
-        confidence = '⭐⭐';
-        reasons.push('Ausgeglichen, aber Heimvorteil + Form geben den Ausschlag');
-      } else if (Math.abs(homeForm - awayForm) <= 1 && (homeForm > 0 || awayForm > 0)) {
-        winner = 'draw';
-        score = '1-1';
-        confidence = '⭐';
-        reasons.push('Sehr ausgeglichen → Unentschieden wahrscheinlich');
-      } else if (homeForm > awayForm) {
-        winner = homeTeam.name;
-        score = '2-1';
-        confidence = '⭐';
-        reasons.push('Ausgeglichenes Ranking, aber bessere Form für ' + homeTeam.name);
-      } else {
-        winner = awayTeam.name;
-        score = '1-2';
-        confidence = '⭐';
-        reasons.push('Ausgeglichenes Ranking, aber bessere Form für ' + awayTeam.name);
-      }
-    } else if (effectiveRankDiff <= 10) {
-      winner = awayTeam.name;
-      score = '1-2';
+      reasons.push(`Favorit siegt knapp, ${underdog} trifft zum Ehrentor`);
+    } else if (v22AbsGap >= 1) {
+      winner = favored;
+      score = v22HomeFavored ? '1-0' : '0-1';
       confidence = '⭐⭐';
-      reasons.push(`${awayTeam.name} ist leichter Favorit`);
-    } else if (effectiveRankDiff <= 20) {
-      winner = awayTeam.name;
-      score = '0-2';
-      confidence = '⭐⭐';
-      reasons.push(`${awayTeam.name} ist deutlicher Favorit`);
+      reasons.push('Enge Kiste → knapper Favoritensieg mit einem Tor Unterschied');
     } else {
-      winner = awayTeam.name;
-      score = '0-3';
-      confidence = '⭐⭐⭐';
-      reasons.push(`${awayTeam.name} ist klarer Favorit`);
+      winner = 'draw';
+      score = '1-1';
+      confidence = '⭐';
+      reasons.push('Ausgeglichenes Spiel → Unentschieden wahrscheinlich');
     }
 
     reasoning = reasons.join('. ');
@@ -1181,10 +1361,551 @@ const lettersData = JSON.stringify(GROUP_LETTERS);
       renderGruppen();
       renderWeltmeister();
       renderKO();
+      setupModelle();
+      setupModelleApp();
       console.log('[Assistent] Alle Tabs gerendert ✅');
     } catch (e) {
       console.error('[Assistent] Fehler:', e.message, e.stack);
     }
   });
+
+  // ============ MODELLE VERGLEICH ============
+  function setupModelle() {
+    document.getElementById('compare-btn').addEventListener('click', async function() {
+      const status = document.getElementById('compare-status');
+      const resultsEl = document.getElementById('compare-results');
+      status.textContent = '⏳ Berechne v1, v3 und v4...';
+      resultsEl.style.display = 'none';
+
+      try {
+        const [modV1, modV3, modV4] = await Promise.all([
+          import('/src/lib/strategicPredictor.js'),
+          import('/src/lib/strategicPredictor3.js'),
+          import('/src/lib/prediction4.js'),
+        ]);
+
+        const pred1 = modV1.generateStrategicPredictions();
+        const pred3 = modV3.generateProbabilisticPredictions();
+        const pred4 = modV4.generateDeterministicPredictions();
+
+        status.textContent = '✅ Vergleich bereit!';
+        renderModelSummary(pred1, pred3, pred4);
+        renderGroupComparison(pred1, pred3, pred4);
+        renderKoComparison(pred1, pred3, pred4);
+        resultsEl.style.display = 'block';
+      } catch (e) {
+        status.textContent = '❌ Fehler: ' + e.message;
+        console.error('[Modelle] Fehler:', e);
+      }
+    });
+  }
+
+  function srfPoints(actual, predicted, isKnockout) {
+    const outcomePts = isKnockout ? 10 : 5;
+    const goalPts = isKnockout ? 2 : 1;
+    const gdPts = isKnockout ? 6 : 3;
+
+    let pts = 0;
+    const aw = actual.homeScore > actual.awayScore;
+    const ad = actual.homeScore === actual.awayScore;
+    const al = actual.homeScore < actual.awayScore;
+    const pw = predicted.homeScore > predicted.awayScore;
+    const pd = predicted.homeScore === predicted.awayScore;
+    const pl = predicted.homeScore < predicted.awayScore;
+    const outcomeCorrect = (aw && pw) || (ad && pd) || (al && pl);
+
+    if (outcomeCorrect) {
+      pts += outcomePts;
+      const actualGD = actual.homeScore - actual.awayScore;
+      const predGD = predicted.homeScore - predicted.awayScore;
+      if (actualGD === predGD) pts += gdPts;
+    }
+
+    if (actual.homeScore === predicted.homeScore) pts += goalPts;
+    if (actual.awayScore === predicted.awayScore) pts += goalPts;
+
+    return pts;
+  }
+
+  function renderModelSummary(p1, p3, p4) {
+    const v1Body = document.getElementById('v1-summary-body');
+    const v3Body = document.getElementById('v3-summary-body');
+    const v4Body = document.getElementById('v4-summary-body');
+
+    let v1Total = 0, v3Total = 0, v4Total = 0, playedCount = 0;
+    let v1Exact = 0, v3Exact = 0, v4Exact = 0, v1Outcome = 0, v3Outcome = 0, v4Outcome = 0;
+    for (const f of fixtures) {
+      const actual = results[f.id];
+      if (!actual) continue;
+      playedCount++;
+      const r1 = p1.matchResults[f.id];
+      const r3 = p3.matchResults[f.id];
+      const r4 = p4.matchResults[f.id];
+      if (r1) { const pts = srfPoints(actual, r1); v1Total += pts; if (pts === 10) v1Exact++; else if (pts >= 5) v1Outcome++; }
+      if (r3) { const pts = srfPoints(actual, r3); v3Total += pts; if (pts === 10) v3Exact++; else if (pts >= 5) v3Outcome++; }
+      if (r4) { const pts = srfPoints(actual, r4); v4Total += pts; if (pts === 10) v4Exact++; else if (pts >= 5) v4Outcome++; }
+    }
+
+    const maxPts = Math.max(v1Total, v3Total, v4Total);
+
+    const champSame = (p1.champion === p3.champion && p3.champion === p4.champion)
+      ? '✅ alle gleich'
+      : (p1.champion === p3.champion ? '✅ v1=v3' : '❌ unterschiedlich');
+
+    v1Body.innerHTML = `
+      <div style="font-size:1.1rem;font-weight:700;margin:8px 0">🏆 ${flag(p1.champion)} ${p1.champion}</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🇨🇭 SUI: ${p1.switzerlandRound} (${p1.switzerlandGoals} Tore)</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">⚽ Torschütze: ~${p1.topScorerGoals} Tore</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🫏 0-0: ${p1.zeroZeroMatches}</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:1.3rem;font-weight:800;color:${v1Total === maxPts ? 'var(--green)' : 'var(--textDim)'}">${v1Total} Pkt</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">${playedCount} Spiele · ⌀ ${(v1Total/playedCount).toFixed(1)}/Spiel</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">🎯 ${v1Exact}× exakt · ✅ ${v1Outcome}× Tendenz</div>
+      </div>
+    `;
+    v4Body.innerHTML = `
+      <div style="font-size:1.1rem;font-weight:700;margin:8px 0">🏆 ${flag(p4.champion)} ${p4.champion}</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🇨🇭 SUI: ${p4.switzerlandRound} (${p4.switzerlandGoals} Tore)</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">⚽ Torschütze: ~${p4.topScorerGoals} Tore</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🫏 0-0: ${p4.zeroZeroMatches}</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:1.3rem;font-weight:800;color:${v4Total === maxPts ? 'var(--green)' : 'var(--textDim)'}">${v4Total} Pkt</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">${playedCount} Spiele · ⌀ ${(v4Total/playedCount).toFixed(1)}/Spiel</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">🎯 ${v4Exact}× exakt · ✅ ${v4Outcome}× Tendenz</div>
+      </div>
+    `;
+    v3Body.innerHTML = `
+      <div style="font-size:1.1rem;font-weight:700;margin:8px 0">🏆 ${flag(p3.champion)} ${p3.champion}</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🇨🇭 SUI: ${p3.switzerlandRound} (${p3.switzerlandGoals} Tore)</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">⚽ Torschütze: ~${p3.topScorerGoals} Tore</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🫏 0-0: ${p3.zeroZeroMatches}</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:1.3rem;font-weight:800;color:${v3Total === maxPts ? 'var(--green)' : 'var(--textDim)'}">${v3Total} Pkt</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">${playedCount} Spiele · ⌀ ${(v3Total/playedCount).toFixed(1)}/Spiel</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">🎯 ${v3Exact}× exakt · ✅ ${v3Outcome}× Tendenz</div>
+      </div>
+    `;
+
+    const existing = document.getElementById('srf-leader');
+    if (existing) existing.remove();
+    const badge = document.createElement('div');
+    badge.id = 'srf-leader';
+    badge.style.cssText = 'text-align:center;margin-bottom:12px;font-size:0.9rem;padding:8px;border-radius:6px;background:rgba(42,58,92,0.2)';
+    badge.innerHTML = `<strong>SRF Tippspiel:</strong> v1 ${v1Total} · v3 ${v3Total} · v4 ${v4Total} Pkt — <strong>${
+      maxPts === v4Total ? 'v4 führt' : maxPts === v3Total ? 'v3 führt' : 'v1 führt'
+    }</strong>` +
+      ` · Weltmeister: ${flag(p1.champion)} ${p1.champion} · ${flag(p3.champion)} ${p3.champion} · ${flag(p4.champion)} ${p4.champion} — ${champSame}`;
+    document.getElementById('v1-summary').parentElement.parentElement.insertBefore(badge, document.getElementById('v1-summary').parentElement);
+  }
+
+  function renderGroupComparison(p1, p3, p4) {
+    const container = document.getElementById('group-compare');
+    const matchResults1 = p1.matchResults;
+    const matchResults3 = p3.matchResults;
+    const matchResults4 = p4.matchResults;
+
+    let totalV1 = 0, totalV3 = 0, totalV4 = 0, totalPlayed = 0;
+
+    let html = '';
+    for (const letter of letters) {
+      const grp = groups[letter];
+      const grpFixtures = fixtures.filter(f => f.group === letter);
+
+      html += `<div class="model-group-title">${GROUP_NAMES[letter]} — ${grp.name}</div>`;
+      html += `<table class="model-table">
+        <thead><tr>
+          <th>Spiel</th>
+          <th style="text-align:center">Resultat</th>
+          <th style="text-align:center">v1</th>
+          <th style="text-align:center">v3</th>
+          <th style="text-align:center">v4</th>
+          <th style="text-align:center">Gewinner</th>
+        </tr></thead><tbody>`;
+
+      for (const f of grpFixtures) {
+        const home = teamName(letter, f.homeIdx);
+        const away = teamName(letter, f.awayIdx);
+        const actual = results[f.id];
+        const r1 = matchResults1[f.id];
+        const r3 = matchResults3[f.id];
+        const r4 = matchResults4[f.id];
+        if (!r1 || !r3 || !r4) continue;
+
+        const actualStr = actual ? `${actual.homeScore}-${actual.awayScore}` : '—';
+        const s1 = `${r1.homeScore}-${r1.awayScore}`;
+        const s3 = `${r3.homeScore}-${r3.awayScore}`;
+        const s4 = `${r4.homeScore}-${r4.awayScore}`;
+
+        let pts1 = 0, pts3 = 0, pts4 = 0;
+        if (actual) {
+          pts1 = srfPoints(actual, r1);
+          pts3 = srfPoints(actual, r3);
+          pts4 = srfPoints(actual, r4);
+          totalV1 += pts1; totalV3 += pts3; totalV4 += pts4; totalPlayed++;
+        }
+
+        const d1 = actual ? ' (' + pts1 + ')' : '';
+        const d3 = actual ? ' (' + pts3 + ')' : '';
+        const d4 = actual ? ' (' + pts4 + ')' : '';
+
+        const maxPts = Math.max(pts1, pts3, pts4);
+        let winner = '—';
+        let winCls = '';
+        if (actual) {
+          if (maxPts === 0) { winner = '✗'; winCls = 'disagree'; }
+          else if (maxPts === pts4 && pts4 > pts1 && pts4 > pts3) { winner = 'v4'; winCls = 'v4-sc'; }
+          else if (maxPts === pts3 && pts3 > pts1 && pts3 > pts4) { winner = 'v3'; winCls = 'v3-sc'; }
+          else if (maxPts === pts1 && pts1 > pts3 && pts1 > pts4) { winner = 'v1'; winCls = 'v1-sc'; }
+          else if (maxPts > 0) { winner = '='; winCls = 'agree'; }
+        }
+
+        html += `<tr>
+          <td class="m-team">${flag(home)} ${home} vs ${flag(away)} ${away}</td>
+          <td style="text-align:center;font-weight:600;color:${actual ? 'var(--text)' : 'var(--textDim)'}">${actualStr}</td>
+          <td class="v1-sc" style="text-align:center;font-size:0.8rem">${s1}<span style="color:${pts1 >= 8 ? 'var(--green)' : pts1 >= 5 ? 'var(--gold)' : pts1 > 0 ? 'var(--textDim)' : ''}">${d1}</span></td>
+          <td class="v3-sc" style="text-align:center;font-size:0.8rem">${s3}<span style="color:${pts3 >= 8 ? 'var(--green)' : pts3 >= 5 ? 'var(--gold)' : pts3 > 0 ? 'var(--textDim)' : ''}">${d3}</span></td>
+          <td class="v4-sc" style="text-align:center;font-size:0.8rem">${s4}<span style="color:${pts4 >= 8 ? 'var(--green)' : pts4 >= 5 ? 'var(--gold)' : pts4 > 0 ? 'var(--textDim)' : ''}">${d4}</span></td>
+          <td class="${winCls}" style="text-align:center">${winner}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>`;
+    }
+
+    const maxTotal = Math.max(totalV1, totalV3, totalV4);
+    const leader = maxTotal === totalV4 ? 'v4 +' + (totalV4 - Math.max(totalV1, totalV3)) :
+      maxTotal === totalV3 ? 'v3 +' + (totalV3 - Math.max(totalV1, totalV4)) :
+      'v1 +' + (totalV1 - Math.max(totalV3, totalV4));
+
+    html = `<div style="margin-bottom:12px;padding:10px 14px;background:rgba(42,58,92,0.2);border-radius:6px;font-size:0.85rem">
+      <strong>🏆 Total SRF Punkte (${totalPlayed} gespielte Spiele):</strong>
+      v1 <span style="color:var(--accent2);font-weight:700">${totalV1}</span> ·
+      v3 <span style="color:var(--green);font-weight:700">${totalV3}</span> ·
+      v4 <span style="color:#a855f7;font-weight:700">${totalV4}</span> ·
+      <strong>${leader}</strong>
+    </div>` + html;
+
+    container.innerHTML = html;
+  }
+
+  function renderKoComparison(p1, p3, p4) {
+    const container = document.getElementById('ko-compare');
+
+    const rounds = [
+      { name: 'Round of 32', r1: p1.r32results, r2: p3.r32results, r3: p4.r32results },
+      { name: 'Round of 16', r1: p1.r16results, r2: p3.r16results, r3: p4.r16results },
+      { name: 'Quarter-finals', r1: p1.qfresults, r2: p3.qfresults, r3: p4.qfresults },
+      { name: 'Semi-finals', r1: p1.sfresults, r2: p3.sfresults, r3: p4.sfresults },
+    ];
+
+    let html = '';
+
+    for (const round of rounds) {
+      const ids = Object.keys(round.r1);
+      html += `<div style="margin-bottom:16px">
+        <div class="ko-round-title">${round.name} (${ids.length} Spiele)</div>
+        <table class="model-table">
+          <thead><tr>
+            <th>Paarung</th>
+            <th style="text-align:center">v1</th>
+            <th style="text-align:center">v3</th>
+            <th style="text-align:center">v4</th>
+            <th style="text-align:center">Match</th>
+          </tr></thead><tbody>`;
+
+      for (const id of ids) {
+        const m1 = round.r1[id], m2 = round.r2[id], m3 = round.r3[id];
+        if (!m1 || !m2 || !m3) continue;
+
+        const s1 = `${m1.homeScore}-${m1.awayScore}`;
+        const s2 = `${m2.homeScore}-${m2.awayScore}`;
+        const s3 = `${m3.homeScore}-${m3.awayScore}`;
+        const w1 = m1.homeScore > m1.awayScore ? m1.homeName : m1.awayName;
+        const w2 = m2.homeScore > m2.awayScore ? m2.homeName : m2.awayName;
+        const w3 = m3.homeScore > m3.awayScore ? m3.homeName : m3.awayName;
+        const allSame = s1 === s2 && s2 === s3 && w1 === w2 && w2 === w3;
+        const matchIcon = allSame ? '✅' : '❌';
+
+        html += `<tr>
+          <td class="m-team">${flag(m1.homeName)} ${m1.homeName} vs ${flag(m1.awayName)} ${m1.awayName}</td>
+          <td class="v1-sc" style="text-align:center">${s1} → ${flag(w1)}</td>
+          <td class="v3-sc" style="text-align:center">${s2} → ${flag(w2)}</td>
+          <td class="v4-sc" style="text-align:center">${s3} → ${flag(w3)}</td>
+          <td class="${allSame ? 'agree' : 'disagree'}" style="text-align:center">${matchIcon}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>
+      </div>`;
+    }
+
+    if (p1.finals && p3.finals && p4.finals) {
+      html += `<div style="margin-bottom:16px">
+        <div class="ko-round-title">Finals (3rd Place + Final)</div>
+        <table class="model-table">
+          <thead><tr>
+            <th>Paarung</th>
+            <th style="text-align:center">v1</th>
+            <th style="text-align:center">v3</th>
+            <th style="text-align:center">v4</th>
+            <th style="text-align:center">Match</th>
+          </tr></thead><tbody>`;
+
+      for (let i = 0; i < Math.max(p1.finals.length, p3.finals.length, p4.finals.length); i++) {
+        const m1 = p1.finals[i], m2 = p3.finals[i], m3 = p4.finals[i];
+        if (!m1 || !m2 || !m3) continue;
+
+        const s1 = `${m1.homeScore}-${m1.awayScore}`;
+        const s2 = `${m2.homeScore}-${m2.awayScore}`;
+        const s3 = `${m3.homeScore}-${m3.awayScore}`;
+        const w1 = m1.homeScore > m1.awayScore ? m1.homeName : m1.awayName;
+        const w2 = m2.homeScore > m2.awayScore ? m2.homeName : m2.awayName;
+        const w3 = m3.homeScore > m3.awayScore ? m3.homeName : m3.awayName;
+        const allSame = s1 === s2 && s2 === s3 && w1 === w2 && w2 === w3;
+        const matchIcon = allSame ? '✅' : '❌';
+
+        html += `<tr>
+          <td class="m-team">${flag(m1.homeName)} ${m1.homeName} vs ${flag(m1.awayName)} ${m1.awayName} (${m1.label || m1.id})</td>
+          <td class="v1-sc" style="text-align:center">${s1} → ${flag(w1)}</td>
+          <td class="v3-sc" style="text-align:center">${s2} → ${flag(w2)}</td>
+          <td class="v4-sc" style="text-align:center">${s3} → ${flag(w3)}</td>
+          <td class="${allSame ? 'agree' : 'disagree'}" style="text-align:center">${matchIcon}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>
+      </div>`;
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ============ HAUPT-APP ENGINES VERGLEICH ============
+  function setupModelleApp() {
+    document.getElementById('compare-app-btn').addEventListener('click', async function() {
+      const status = document.getElementById('compare-app-status');
+      const resultsEl = document.getElementById('compare-app-results');
+      status.textContent = '⏳ Berechne prediction.js und prediction4.js...';
+      resultsEl.style.display = 'none';
+
+      try {
+        const [modOld, modNew] = await Promise.all([
+          import('/src/lib/prediction.js'),
+          import('/src/lib/prediction4.js'),
+        ]);
+
+        const predOld = modOld.generateDeterministicPredictions('fifa');
+        const predNew = modNew.generateDeterministicPredictions('fifa');
+
+        status.textContent = '✅ Vergleich bereit!';
+        renderAppSummary(predOld, predNew);
+        renderAppGroupComparison(predOld, predNew);
+        renderAppKoComparison(predOld, predNew);
+        resultsEl.style.display = 'block';
+      } catch (e) {
+        status.textContent = '❌ Fehler: ' + e.message;
+        console.error('[Modelle App] Fehler:', e);
+      }
+    });
+  }
+
+  function renderAppSummary(pOld, pNew) {
+    const oldBody = document.getElementById('pred1-summary-body');
+    const newBody = document.getElementById('pred4-summary-body');
+
+    let oldTotal = 0, newTotal = 0, playedCount = 0;
+    let oldExact = 0, newExact = 0, oldOutcome = 0, newOutcome = 0;
+    for (const f of fixtures) {
+      const actual = results[f.id];
+      if (!actual) continue;
+      playedCount++;
+      const r1 = pOld.matchResults[f.id];
+      const r2 = pNew.matchResults[f.id];
+      if (r1) { const pts = srfPoints(actual, r1); oldTotal += pts; if (pts === 10) oldExact++; else if (pts >= 5) oldOutcome++; }
+      if (r2) { const pts = srfPoints(actual, r2); newTotal += pts; if (pts === 10) newExact++; else if (pts >= 5) newOutcome++; }
+    }
+
+    const maxPts = Math.max(oldTotal, newTotal);
+    const diff = newTotal - oldTotal;
+    const diffStr = diff > 0 ? `+${diff}` : diff < 0 ? diff : '±0';
+
+    oldBody.innerHTML = `
+      <div style="font-size:1.1rem;font-weight:700;margin:8px 0">🏆 ${flag(pOld.champion)} ${pOld.champion}</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🇨🇭 SUI: ${pOld.switzerlandRound} (${pOld.switzerlandGoals} Tore)</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:1.3rem;font-weight:800;color:${oldTotal === maxPts ? 'var(--green)' : 'var(--textDim)'}">${oldTotal} Pkt</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">${playedCount} Spiele · ⌀ ${(oldTotal/playedCount).toFixed(1)}/Spiel</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">🎯 ${oldExact}× exakt · ✅ ${oldOutcome}× Tendenz</div>
+      </div>
+    `;
+    newBody.innerHTML = `
+      <div style="font-size:1.1rem;font-weight:700;margin:8px 0">🏆 ${flag(pNew.champion)} ${pNew.champion}</div>
+      <div style="font-size:0.85rem;color:var(--textDim)">🇨🇭 SUI: ${pNew.switzerlandRound} (${pNew.switzerlandGoals} Tore)</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:1.3rem;font-weight:800;color:${newTotal === maxPts ? 'var(--green)' : 'var(--textDim)'}">${newTotal} Pkt</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">${playedCount} Spiele · ⌀ ${(newTotal/playedCount).toFixed(1)}/Spiel</div>
+        <div style="font-size:0.75rem;color:var(--textDim)">🎯 ${newExact}× exakt · ✅ ${newOutcome}× Tendenz</div>
+      </div>
+    `;
+
+    const existing = document.getElementById('srf-leader-app');
+    if (existing) existing.remove();
+    const badge = document.createElement('div');
+    badge.id = 'srf-leader-app';
+    badge.style.cssText = 'text-align:center;margin-bottom:12px;font-size:0.9rem;padding:8px;border-radius:6px;background:rgba(42,58,92,0.2)';
+    const winner = newTotal > oldTotal ? 'prediction4.js (v4) führt' :
+      oldTotal > newTotal ? 'prediction.js (v1) führt' : 'Gleichstand';
+    badge.innerHTML = `<strong>SRF Tippspiel:</strong> prediction.js ${oldTotal} · prediction4.js ${newTotal} Pkt — <strong>${winner} (Δ${diffStr})</strong>` +
+      ` · Weltmeister: ${flag(pOld.champion)} ${pOld.champion} → ${flag(pNew.champion)} ${pNew.champion}`;
+    document.getElementById('pred1-summary').parentElement.parentElement.insertBefore(badge, document.getElementById('pred1-summary').parentElement);
+  }
+
+  function renderAppGroupComparison(pOld, pNew) {
+    const container = document.getElementById('group-compare-app');
+    const mr1 = pOld.matchResults, mr2 = pNew.matchResults;
+
+    let totalOld = 0, totalNew = 0, totalPlayed = 0;
+    let html = '';
+    for (const letter of letters) {
+      const grp = groups[letter];
+      const grpFixtures = fixtures.filter(f => f.group === letter);
+
+      html += `<div class="model-group-title">${GROUP_NAMES[letter]} — ${grp.name}</div>`;
+      html += `<table class="model-table">
+        <thead><tr>
+          <th>Spiel</th>
+          <th style="text-align:center">Resultat</th>
+          <th style="text-align:center">prediction.js (v1)</th>
+          <th style="text-align:center">prediction4.js (v4) ✅</th>
+          <th style="text-align:center">Besser</th>
+        </tr></thead><tbody>`;
+
+      for (const f of grpFixtures) {
+        const home = teamName(letter, f.homeIdx);
+        const away = teamName(letter, f.awayIdx);
+        const actual = results[f.id];
+        const r1 = mr1[f.id], r2 = mr2[f.id];
+        if (!r1 || !r2) continue;
+
+        const actualStr = actual ? `${actual.homeScore}-${actual.awayScore}` : '—';
+        const s1 = `${r1.homeScore}-${r1.awayScore}`;
+        const s2 = `${r2.homeScore}-${r2.awayScore}`;
+
+        let pts1 = 0, pts2 = 0;
+        if (actual) {
+          pts1 = srfPoints(actual, r1);
+          pts2 = srfPoints(actual, r2);
+          totalOld += pts1; totalNew += pts2; totalPlayed++;
+        }
+
+        const d1 = actual ? ' (' + pts1 + ')' : '';
+        const d2 = actual ? ' (' + pts2 + ')' : '';
+        const better = actual ? (pts2 > pts1 ? 'v4✅' : pts1 > pts2 ? 'v1' : '=') : '—';
+        const betterCls = actual ? (pts2 > pts1 ? 'v4-sc' : pts1 > pts2 ? 'v1-sc' : 'agree') : '';
+
+        html += `<tr>
+          <td class="m-team">${flag(home)} ${home} vs ${flag(away)} ${away}</td>
+          <td style="text-align:center;font-weight:600;color:${actual ? 'var(--text)' : 'var(--textDim)'}">${actualStr}</td>
+          <td class="v1-sc" style="text-align:center;font-size:0.8rem">${s1}<span style="color:${pts1 >= 8 ? 'var(--green)' : pts1 >= 5 ? 'var(--gold)' : pts1 > 0 ? 'var(--textDim)' : ''}">${d1}</span></td>
+          <td class="v4-sc" style="text-align:center;font-size:0.8rem">${s2}<span style="color:${pts2 >= 8 ? 'var(--green)' : pts2 >= 5 ? 'var(--gold)' : pts2 > 0 ? 'var(--textDim)' : ''}">${d2}</span></td>
+          <td class="${betterCls}" style="text-align:center;font-size:0.8rem">${better}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>`;
+    }
+
+    html = `<div style="margin-bottom:12px;padding:10px 14px;background:rgba(42,58,92,0.2);border-radius:6px;font-size:0.85rem">
+      <strong>🏆 Total SRF Punkte (${totalPlayed} gespielte Spiele):</strong>
+      prediction.js <span style="color:var(--accent2);font-weight:700">${totalOld}</span> ·
+      prediction4.js <span style="color:#a855f7;font-weight:700">${totalNew}</span>
+    </div>` + html;
+
+    container.innerHTML = html;
+  }
+
+  function renderAppKoComparison(pOld, pNew) {
+    const container = document.getElementById('ko-compare-app');
+
+    const rounds = [
+      { name: 'Round of 32', r1: pOld.r32results, r2: pNew.r32results },
+      { name: 'Round of 16', r1: pOld.r16results, r2: pNew.r16results },
+      { name: 'Quarter-finals', r1: pOld.qfresults, r2: pNew.qfresults },
+      { name: 'Semi-finals', r1: pOld.sfresults, r2: pNew.sfresults },
+    ];
+
+    let html = '';
+
+    for (const round of rounds) {
+      const ids = Object.keys(round.r1);
+      html += `<div style="margin-bottom:16px">
+        <div class="ko-round-title">${round.name} (${ids.length} Spiele)</div>
+        <table class="model-table">
+          <thead><tr>
+            <th>Paarung</th>
+            <th style="text-align:center">prediction.js (v1)</th>
+            <th style="text-align:center">prediction4.js (v4) ✅</th>
+            <th style="text-align:center">Match</th>
+          </tr></thead><tbody>`;
+
+      for (const id of ids) {
+        const m1 = round.r1[id], m2 = round.r2[id];
+        if (!m1 || !m2) continue;
+
+        const s1 = `${m1.homeScore}-${m1.awayScore}`;
+        const s2 = `${m2.homeScore}-${m2.awayScore}`;
+        const w1 = m1.homeScore > m1.awayScore ? m1.homeName : m1.awayName;
+        const w2 = m2.homeScore > m2.awayScore ? m2.homeName : m2.awayName;
+        const allSame = s1 === s2 && w1 === w2;
+        const matchIcon = allSame ? '✅' : '❌';
+
+        html += `<tr>
+          <td class="m-team">${flag(m1.homeName)} ${m1.homeName} vs ${flag(m1.awayName)} ${m1.awayName}</td>
+          <td class="v1-sc" style="text-align:center">${s1} → ${flag(w1)}</td>
+          <td class="v4-sc" style="text-align:center">${s2} → ${flag(w2)}</td>
+          <td class="${allSame ? 'agree' : 'disagree'}" style="text-align:center">${matchIcon}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>
+      </div>`;
+    }
+
+    if (pOld.finals && pNew.finals) {
+      html += `<div style="margin-bottom:16px">
+        <div class="ko-round-title">Finals (3rd Place + Final)</div>
+        <table class="model-table">
+          <thead><tr>
+            <th>Paarung</th>
+            <th style="text-align:center">prediction.js (v1)</th>
+            <th style="text-align:center">prediction4.js (v4) ✅</th>
+            <th style="text-align:center">Match</th>
+          </tr></thead><tbody>`;
+
+      for (let i = 0; i < Math.max(pOld.finals.length, pNew.finals.length); i++) {
+        const m1 = pOld.finals[i], m2 = pNew.finals[i];
+        if (!m1 || !m2) continue;
+
+        const s1 = `${m1.homeScore}-${m1.awayScore}`;
+        const s2 = `${m2.homeScore}-${m2.awayScore}`;
+        const w1 = m1.homeScore > m1.awayScore ? m1.homeName : m1.awayName;
+        const w2 = m2.homeScore > m2.awayScore ? m2.homeName : m2.awayName;
+        const allSame = s1 === s2 && w1 === w2;
+        const matchIcon = allSame ? '✅' : '❌';
+
+        html += `<tr>
+          <td class="m-team">${flag(m1.homeName)} ${m1.homeName} vs ${flag(m1.awayName)} ${m1.awayName} (${m1.label || m1.id})</td>
+          <td class="v1-sc" style="text-align:center">${s1} → ${flag(w1)}</td>
+          <td class="v4-sc" style="text-align:center">${s2} → ${flag(w2)}</td>
+          <td class="${allSame ? 'agree' : 'disagree'}" style="text-align:center">${matchIcon}</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table>
+      </div>`;
+    }
+
+    container.innerHTML = html;
+  }
 })();
 </script>

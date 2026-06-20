@@ -2,15 +2,23 @@ export const RESULTS = {
   // Group A
   A_01: { homeScore: 2, awayScore: 0 },
   A_02: { homeScore: 2, awayScore: 1 },
+  A_03: { homeScore: 1, awayScore: 0 },
+  A_04: { homeScore: 1, awayScore: 1 },
   // Group B
   B_01: { homeScore: 1, awayScore: 1 },
   B_02: { homeScore: 1, awayScore: 1 },
+  B_03: { homeScore: 6, awayScore: 0 },
+  B_04: { homeScore: 4, awayScore: 1 },
   // Group C
   C_01: { homeScore: 1, awayScore: 1 },
   C_02: { homeScore: 0, awayScore: 1 },
+  C_03: { homeScore: 3, awayScore: 0 },
+  C_04: { homeScore: 1, awayScore: 0 },
   // Group D
   D_01: { homeScore: 4, awayScore: 1 },
   D_02: { homeScore: 2, awayScore: 0 },
+  D_03: { homeScore: 2, awayScore: 0 },
+  D_04: { homeScore: 1, awayScore: 0 },
   // Group E
   E_01: { homeScore: 7, awayScore: 1 },
   E_02: { homeScore: 1, awayScore: 0 },

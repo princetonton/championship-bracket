@@ -221,7 +221,7 @@ import { getGroupFixtures } from '../data/fixtures';
 import { computeGroupStandings, allGroupMatchesComplete } from '../lib/standings';
 import { getBestThirdPlaced } from '../lib/qualification';
 import { generateRoundOf32, getRoundMatches } from '../lib/bracketLogic';
-import { generatePredictions, simulateMatch, getTeamPts, createRNG, generateDeterministicPredictions, deterministicPredictMatch, getTeamRankLookup, generateSeededPredictions } from '../lib/prediction';
+import { generatePredictions, getTeamPts, deterministicPredictMatch, getTeamRankLookup, generateDeterministicPredictions, generateSeededPredictions } from '../lib/prediction4';
 import { loadProfile, saveProfile, loadCustomRankings } from '../lib/storage';
 
 let currentProfile = 'guest';
@@ -912,7 +912,10 @@ function initPrefillRoundButtons() {
         const homeName = match.querySelector('.team-name.home').textContent;
         const awayName = match.querySelector('.team-name.away').textContent;
         if (homeName === 'TBD' || awayName === 'TBD') return;
-        const result = deterministicPredictMatch(rankLookup[homeName] || 99, rankLookup[awayName] || 99);
+        const result = deterministicPredictMatch(
+          rankLookup[homeName] || 50, rankLookup[awayName] || 50,
+          getTeamPts(homeName), getTeamPts(awayName), true, null, homeName
+        );
 
         match.querySelector('.ko-score[data-side="home"]').value = result.homeScore;
         match.querySelector('.ko-score[data-side="away"]').value = result.awayScore;

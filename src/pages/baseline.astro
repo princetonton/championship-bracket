@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import { GROUPS, GROUP_LETTERS } from '../data/groups';
 import { getGroupFixtures } from '../data/fixtures';
 import { baselineMatchResults, baselinePredictions, groupComments } from '../data/baseline';
-import { generateDeterministicPredictions } from '../lib/prediction';
+import { generateDeterministicPredictions } from '../lib/prediction4';
 
 const fifaPred = generateDeterministicPredictions('fifa');
 
