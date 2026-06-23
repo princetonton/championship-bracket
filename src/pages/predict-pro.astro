@@ -1,0 +1,372 @@
+---
+import Base from '../layouts/Base.astro';
+import { GROUPS, GROUP_LETTERS } from '../data/groups';
+import { getGroupFixtures } from '../data/fixtures';
+import { FIXTURE_SCHEDULE } from '../data/schedule';
+import { RESULTS } from '../data/results';
+import { getModelComparison, predictFullTournament, predictRemainingGroup } from '../lib/prediction5';
+import { generatePredictions as v3 } from '../lib/prediction';
+import { generatePredictions as v4 } from '../lib/prediction4';
+
+const cmp = getModelComparison(GROUPS, RESULTS);
+const full = predictFullTournament(RESULTS, GROUPS);
+const rem = predictRemainingGroup(RESULTS, GROUPS);
+
+const v3pred = v3(42);
+const v4pred = v4(42);
+
+function v1score(group, f) {
+  const home = group.teams[f.homeIdx], away = group.teams[f.awayIdx];
+  const gap = (home.rank - 3) - away.rank, absGap = Math.abs(gap);
+  if (absGap >= 20) return gap < 0 ? { h: 3, a: 0 } : { h: 0, a: 3 };
+  if (absGap >= 8) return gap < 0 ? { h: 2, a: 0 } : { h: 0, a: 2 };
+  if (absGap >= 3) return gap < 0 ? { h: 2, a: 1 } : { h: 1, a: 2 };
+  if (absGap >= 1) return gap < 0 ? { h: 1, a: 0 } : { h: 0, a: 1 };
+  return { h: 1, a: 1 };
+}
+function v2score(group, f) {
+  const home = group.teams[f.homeIdx], away = group.teams[f.awayIdx];
+  const gap = (home.rank - 3) - away.rank, absGap = Math.abs(gap), hf = gap < 0;
+  if (absGap >= 60) return hf ? { h: 5, a: 0 } : { h: 0, a: 5 };
+  if (absGap >= 50) return hf ? { h: 4, a: 0 } : { h: 0, a: 4 };
+  if (absGap >= 20) return hf ? { h: 3, a: 0 } : { h: 0, a: 3 };
+  if (absGap >= 8) return hf ? { h: 2, a: 0 } : { h: 0, a: 2 };
+  if (absGap >= 3) return hf ? { h: 2, a: 1 } : { h: 1, a: 2 };
+  if (absGap >= 1) return hf ? { h: 1, a: 0 } : { h: 0, a: 1 };
+  return { h: 1, a: 1 };
+}
+
+const v5preds = {};
+for (const d of cmp.details) {
+  const [hs, as] = d.predicted.split('-');
+  v5preds[d.fixture] = { homeScore: +hs, awayScore: +as, lambdaHome: d.lambdaHome, lambdaAway: d.lambdaAway, actualPts: d.points };
+}
+for (const r of rem.predictions) {
+  v5preds[r.fixture] = { homeScore: r.homeScore, awayScore: r.awayScore, confidence: r.confidence, expectedPoints: r.expectedPoints.toFixed(2) };
+}
+
+function predCell(m, actual) {
+  if (m.h == null || m.a == null) return { text: '\u2014', cls: 'pred-na' };
+  const text = `${m.h}-${m.a}`;
+  if (!actual) return { text, cls: 'pred-future' };
+  const sameOutcome = Math.sign(m.h - m.a) === Math.sign(actual.homeScore - actual.awayScore);
+  const sameExact = m.h === actual.homeScore && m.a === actual.awayScore;
+  const sameGD = (m.h - m.a) === (actual.homeScore - actual.awayScore);
+  let cls = 'pred-wrong';
+  if (sameExact) cls = 'pred-exact';
+  else if (sameOutcome && sameGD) cls = 'pred-gd';
+  else if (sameOutcome) cls = 'pred-outcome';
+  return { text, cls };
+}
+
+const allGroups = GROUP_LETTERS.map(letter => {
+  const group = GROUPS[letter];
+  const fixtures = getGroupFixtures(letter);
+  const rows = fixtures.map(f => {
+    const actual = RESULTS[f.id];
+    const sched = FIXTURE_SCHEDULE[f.id] || {};
+    const homeName = group.teams[f.homeIdx].name;
+    const awayName = group.teams[f.awayIdx].name;
+    const v1 = v1score(group, f);
+    const v2 = v2score(group, f);
+    const v3p = v3pred.matchResults[f.id] || {};
+    const v4p = v4pred.matchResults[f.id] || {};
+    const v5p = v5preds[f.id] || {};
+    const models = [
+      { key: 'v1', h: v1.h, a: v1.a },
+      { key: 'v2', h: v2.h, a: v2.a },
+      { key: 'v3', h: v3p.homeScore, a: v3p.awayScore },
+      { key: 'v4', h: v4p.homeScore, a: v4p.awayScore },
+      { key: 'v5', h: v5p.homeScore, a: v5p.awayScore },
+    ];
+    const cols = models.map(m => predCell(m, actual));
+    const v5extra = v5p;
+    return { id: f.id, idx: f.id.slice(2), homeName, awayName, actual, sched, cols, v5extra };
+  });
+  const played = rows.filter(r => r.actual);
+  const total = played.reduce((s, r) => s + (r.v5extra.actualPts || 0), 0);
+  return { letter, name: group.name, teams: group.teams, rows, played: played.length, pts: total, maxPts: played.length * 10 };
+});
+
+const finalMatch = full.finalResults['FINAL'];
+const thirdMatch = full.thirdResults['THIRD'];
+const championName = finalMatch ? (finalMatch.homeScore > finalMatch.awayScore ? finalMatch.homeName : finalMatch.awayName) : 'TBD';
+const thirdWinner = thirdMatch ? (thirdMatch.homeScore > thirdMatch.awayScore ? thirdMatch.homeName : thirdMatch.awayName) : 'TBD';
+const models = [
+  { key: 'v1', name: 'Deterministic (v1)', pct: cmp.v1.pct, total: cmp.v1.total, cls: '' },
+  { key: 'v2', name: 'Extended (v2)', pct: cmp.v2.pct, total: cmp.v2.total, cls: '' },
+  { key: 'v3', name: 'Probabilistic (v3)', pct: cmp.v3.pct, total: cmp.v3.total, cls: '' },
+  { key: 'v4', name: 'Heuristic (v4)', pct: cmp.v4.pct, total: cmp.v4.total, cls: '' },
+  { key: 'v5', name: 'Dixon-Coles (v5)', pct: cmp.v5.pct, total: cmp.v5.total, cls: 'highlight' },
+];
+const koRounds = [
+  { label: 'Round of 32', matches: full.r32, results: full.r32results },
+  { label: 'Round of 16', matches: full.r16, results: full.r16results },
+  { label: 'Quarter-finals', matches: full.qf, results: full.qfresults },
+  { label: 'Semi-finals', matches: full.sf, results: full.sfresults },
+];
+---
+
+<Base>
+  <header>
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <h1>FIFA World Cup 2026</h1>
+        <div class="subtitle">Model Comparison &amp; Predictions</div>
+      </div>
+      <a href="/" class="back-link" style="color:var(--accent2);font-size:0.85rem">\u2190 Back to Tracker</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="password-lock" class="password-lock">
+      <div class="password-lock-inner">
+        <div style="font-size:2rem;margin-bottom:8px">🔒</div>
+        <h2 style="margin-bottom:4px">Password Required</h2>
+        <p style="color:var(--textDim);font-size:0.85rem;margin-bottom:16px">Enter the password to view model comparisons.</p>
+        <div style="display:flex;gap:8px;flex-direction:column;align-items:center">
+          <input type="password" id="password-input" placeholder="Password" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 14px;font-size:0.9rem;width:200px;text-align:center" />
+          <button class="btn btn-primary" id="unlock-btn">Unlock</button>
+          <span id="password-error" style="color:var(--red);font-size:0.8rem;display:none">Incorrect password</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-content" style="display:none">
+      <section class="section">
+        <h2 class="section-title">Model Performance <span class="badge">{cmp.played} played matches</span></h2>
+        <p class="section-subtitle">SRF points earned. Max possible: <strong>{cmp.maxPts} pts</strong> ({cmp.played} \u00d7 10).</p>
+        <div class="comparison-grid">
+          {models.map(m => (
+            <div class={"card model-card " + m.cls}>
+              <div class="model-name">{m.name}</div>
+              <div class="model-score">{m.total}</div>
+              <div class="model-pct">{m.pct}%</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {allGroups.map(g => (
+        <section class="section">
+          <h2 class="section-title" style="cursor:pointer" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+            {g.name} <span class="badge">{g.played}/6 played \u00b7 v5: {g.pts}/{g.maxPts}</span>
+          </h2>
+          <div class="group-table-wrap">
+            <table class="data-table group-table">
+              <thead>
+                <tr>
+                  <th></th><th>Home</th><th></th><th></th><th>Away</th>
+                  <th class="col-v1">v1</th><th class="col-v2">v2</th><th class="col-v3">v3</th><th class="col-v4">v4</th><th class="col-v5">v5</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.rows.map(r => {
+                  const dateStr = r.actual
+                    ? <><strong>{r.actual.homeScore}-{r.actual.awayScore}</strong></>
+                    : <span class="date-badge">{r.sched.date || '?'}</span>;
+                  return (
+                    <tr class={r.actual ? '' : 'row-future'}>
+                      <td class="mono">{r.idx}</td>
+                      <td class="tright">{r.homeName}</td>
+                      <td class="score-cell">{dateStr}</td>
+                      <td class="colon-cell">:</td>
+                      <td>{r.awayName}</td>
+                      {r.cols.map(c => <td class={"pred-cell " + c.cls}>{c.text}</td>)}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
+
+      <section class="section">
+        <h2 class="section-title">Upcoming Matches <span class="badge">{rem.predictions.length} remaining</span></h2>
+        <p class="section-subtitle">v5 (Dixon-Coles) recommended tips. High = strong favorite, low = toss-up.</p>
+        <div class="detail-table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Match</th><th>Home</th><th></th><th></th><th>Away</th><th>Confidence</th><th>EV</th></tr></thead>
+            <tbody>
+              {rem.predictions.map(p => (
+                <tr>
+                  <td class="mono">{p.fixture}</td>
+                  <td class="tright">{p.home}</td>
+                  <td class="mono"><strong>{p.homeScore}</strong></td>
+                  <td class="mono"><strong>{p.awayScore}</strong></td>
+                  <td>{p.away}</td>
+                  <td><span class={"conf-badge conf-" + p.confidence}>{p.confidence}</span></td>
+                  <td class="mono">{p.expectedPoints.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Knockout Prediction <span class="badge">v5 Dixon-Coles</span></h2>
+        <div class="prediction-cards">
+          <div class="card prediction-card"><div class="pred-label">World Champion</div><div class="pred-value gold">{championName}</div></div>
+          <div class="card prediction-card"><div class="pred-label">Switzerland Reaches</div><div class="pred-value">{full.switzerlandRound}</div></div>
+          <div class="card prediction-card"><div class="pred-label">Switzerland Goals</div><div class="pred-value">{full.switzerlandGoals}</div></div>
+          <div class="card prediction-card"><div class="pred-label">3rd Place</div><div class="pred-value">{thirdWinner}</div></div>
+        </div>
+
+        {koRounds.map(r => (
+          <div style="margin-top:16px">
+            <h3 style="font-size:1rem;margin-bottom:6px">{r.label}</h3>
+            <table class="data-table ko-table">
+              <tbody>
+                {r.matches.map(m => {
+                  const res = r.results[m.id];
+                  if (!res) return <tr><td class="mono">{m.label || m.id}</td><td><span class="dim">\u2014</span></td></tr>;
+                  const winner = res.homeScore > res.awayScore ? res.homeName : res.awayName;
+                  return (
+                    <tr>
+                      <td class="mono">{m.label || m.id}</td>
+                      <td><span class={winner === res.homeName ? 'win' : 'loss'}>{res.homeName}</span> <strong>{res.homeScore}-{res.awayScore}</strong> <span class={winner === res.awayName ? 'win' : 'loss'}>{res.awayName}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ))}
+
+        <div style="margin-top:16px">
+          <h3 style="font-size:1rem;margin-bottom:6px">Finals</h3>
+          <table class="data-table ko-table">
+            <tbody>
+              {thirdMatch && (
+                <tr>
+                  <td>Third Place</td>
+                  <td><span class={thirdMatch.homeScore > thirdMatch.awayScore ? 'win' : 'loss'}>{thirdMatch.homeName}</span> <strong>{thirdMatch.homeScore}-{thirdMatch.awayScore}</strong> <span class={thirdMatch.awayScore > thirdMatch.homeScore ? 'win' : 'loss'}>{thirdMatch.awayName}</span></td>
+                </tr>
+              )}
+              {finalMatch && (
+                <tr>
+                  <td>Final</td>
+                  <td><span class={finalMatch.homeScore > finalMatch.awayScore ? 'win' : 'loss'}>{finalMatch.homeName}</span> <strong>{finalMatch.homeScore}-{finalMatch.awayScore}</strong> <span class={finalMatch.awayScore > finalMatch.homeScore ? 'win' : 'loss'}>{finalMatch.awayName}</span></td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2 class="section-title">Methodology</h2>
+        <div style="font-size:0.88rem;color:var(--textDim);line-height:1.7">
+          <p><strong>v1 Deterministic:</strong> Rank-gap thresholds (host rank -3). Gap \u2265 20 \u2192 3-0, \u2265 8 \u2192 2-0, \u2265 3 \u2192 2-1, \u2265 1 \u2192 1-0, else 1-1.</p>
+          <p><strong>v2 Extended:</strong> Same logic, extended thresholds up to 5-0 for gap \u2265 60.</p>
+          <p><strong>v3 Probabilistic:</strong> Seeded RNG simulation; match outcomes drawn from rank-weighted probabilities.</p>
+          <p><strong>v4 Heuristic:</strong> Poisson-based with FIFA pts as strength. Home advantage 1.2\u00d7 for hosts.</p>
+          <p><strong>v5 Dixon-Coles:</strong> Attack/defense per team. FIFA prior + tournament evidence (weight = min(0.85, played \u00d7 0.2)). SRF-optimized score selection. Host advantage 1.2\u00d7 for Mexico/USA/Canada in group stage.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</Base>
+
+<style is:global>
+  .back-link { text-decoration: none; }
+  .back-link:hover { text-decoration: underline; }
+
+  .password-lock {
+    display: flex; align-items: center; justify-content: center; min-height: 50vh;
+  }
+  .password-lock-inner {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 32px; text-align: center; max-width: 340px; width: 100%;
+  }
+
+  .badge {
+    background: var(--accent); color: white; font-size: 0.7rem; padding: 2px 8px;
+    border-radius: 4px; vertical-align: middle; font-weight: 600; letter-spacing: 0.5px;
+  }
+
+  .comparison-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 16px 0;
+  }
+  .model-card { text-align: center; padding: 14px 10px; }
+  .highlight { border: 2px solid var(--accent); background: rgba(59,130,246,0.08); }
+  .model-name { font-size: 0.75rem; color: var(--textDim); margin-bottom: 4px; font-weight: 500; }
+  .model-score { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+  .model-pct { font-size: 0.85rem; color: var(--accent2); }
+
+  .group-table-wrap { margin-top: 8px; overflow-x: auto; }
+  .group-table { font-size: 0.78rem; min-width: 680px; }
+  .group-table th { font-size: 0.68rem; padding: 5px 5px; text-align: center; }
+  .group-table th.col-v5 { color: var(--accent); }
+  .group-table td { padding: 3px 5px; text-align: center; white-space: nowrap; }
+  .group-table .tright { text-align: right; }
+  .group-table .mono { font-family: monospace; font-size: 0.72rem; color: var(--textDim); }
+  .score-cell { font-weight: 700; font-size: 0.82rem; min-width: 36px; }
+  .colon-cell { color: var(--textDim); padding: 0 1px !important; }
+  .row-future td { opacity: 0.75; }
+  .row-future .score-cell { font-weight: 400; }
+  .date-badge { font-size: 0.68rem; color: var(--textDim); }
+
+  .pred-cell { font-family: monospace; font-size: 0.75rem; font-weight: 600; padding: 3px 3px !important; min-width: 28px; }
+  .pred-exact { background: rgba(34,197,94,0.2); color: #4ade80; }
+  .pred-gd { background: rgba(234,179,8,0.15); color: #facc15; }
+  .pred-outcome { background: rgba(59,130,246,0.12); color: #60a5fa; }
+  .pred-wrong { color: var(--textDim); }
+  .pred-na { color: rgba(255,255,255,0.12); }
+  .pred-future { color: var(--textDim); font-weight: 400; }
+
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--border);
+    color: var(--textDim); font-weight: 600; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .data-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  .data-table tr:hover td { background: rgba(42,58,92,0.15); }
+  .data-table .mono { font-family: monospace; font-size: 0.82rem; }
+
+  .detail-table-wrap { margin-top: 12px; max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+
+  .win { color: var(--accent); font-weight: 600; }
+  .loss { color: var(--textDim); }
+  .dim { color: var(--textDim); }
+
+  .conf-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; }
+  .conf-high { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .conf-med { background: rgba(234,179,8,0.15); color: #facc15; }
+  .conf-low  { background: rgba(239,68,68,0.15); color: #f87171; }
+
+  .prediction-cards {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px;
+  }
+  .prediction-card { background: var(--surface); padding: 14px; }
+  .pred-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--textDim); margin-bottom: 4px; }
+  .pred-value { font-size: 1.1rem; font-weight: 700; }
+  .pred-value.gold { color: var(--gold); }
+</style>
+
+<script>
+  function unlock() {
+    const pw = document.getElementById('password-input').value;
+    if (pw === 'Dani-123!') {
+      document.getElementById('password-lock').style.display = 'none';
+      document.getElementById('page-content').style.display = 'block';
+      sessionStorage.setItem('predict_pro_unlocked', '1');
+    } else {
+      document.getElementById('password-error').style.display = 'inline';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('predict_pro_unlocked') === '1') {
+      document.getElementById('password-lock').style.display = 'none';
+      document.getElementById('page-content').style.display = 'block';
+    }
+    document.getElementById('unlock-btn').addEventListener('click', unlock);
+    document.getElementById('password-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') unlock();
+    });
+  });
+</script>

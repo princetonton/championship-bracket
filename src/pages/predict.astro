@@ -17,6 +17,15 @@ import Base from '../layouts/Base.astro';
 
       <div class="card">
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div class="model-selector">
+            <label for="model-select" style="font-size:0.8rem;color:var(--textDim);margin-right:8px">Model:</label>
+            <select id="model-select" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 12px;font-size:0.85rem">
+              <option value="v4">v4 — Heuristic (Poisson)</option>
+              <option value="v3">v3 — Probabilistic (Rank)</option>
+              <option value="v1">v1 — Deterministic</option>
+              <option value="v5">v5 — Dixon-Coles Poisson (NEW)</option>
+            </select>
+          </div>
           <button class="btn btn-gold" id="run-prediction">🚀 Generate Full Prediction</button>
           <span id="pred-status" style="color:var(--textDim);font-size:0.85rem">Click to generate</span>
         </div>
@@ -56,14 +65,18 @@ import Base from '../layouts/Base.astro';
       </div>
     </section>
   </main>
-
 </Base>
 
 <script>
-import { generatePredictions } from '../lib/prediction4';
+import { generatePredictions as v3 } from '../lib/prediction';
+import { generatePredictions as v4 } from '../lib/prediction4';
+import { generateStrategicPredictions } from '../lib/strategicPredictor';
+import { GROUPS } from '../data/groups';
+import { RESULTS } from '../data/results';
+import { predictFullTournament as v5 } from '../lib/prediction5';
 
-function renderPredBracket(containerId, matches) {
-  document.getElementById(containerId).innerHTML = matches.map(m => `
+function renderBracketMatch(m) {
+  return `
     <div class="bracket-match">
       <div class="match-label">${m.label || m.id}</div>
       <div class="teams">
@@ -74,19 +87,56 @@ function renderPredBracket(containerId, matches) {
         <span class="team-name away">${m.awayName}</span>
       </div>
     </div>
-  `).join('');
+  `;
+}
+
+function renderPredBracket(containerId, matches) {
+  document.getElementById(containerId).innerHTML = matches.map(renderBracketMatch).join('');
+}
+
+function getSelectedModel() {
+  return document.getElementById('model-select').value;
+}
+
+function getFinals(pred, model) {
+  if (model === 'v5') {
+    const matches = [];
+    if (pred.thirdResults && pred.thirdResults['THIRD']) {
+      const t = pred.thirdResults['THIRD'];
+      matches.push({ id: 'THIRD', label: 'Third place', homeName: t.homeName, awayName: t.awayName, homeScore: t.homeScore, awayScore: t.awayScore });
+    }
+    if (pred.finalResults && pred.finalResults['FINAL']) {
+      const f = pred.finalResults['FINAL'];
+      matches.push({ id: 'FINAL', label: 'Final', homeName: f.homeName, awayName: f.awayName, homeScore: f.homeScore, awayScore: f.awayScore });
+    }
+    return matches;
+  }
+  return pred.finals || [];
 }
 
 document.getElementById('run-prediction').addEventListener('click', () => {
   const status = document.getElementById('pred-status');
+  const model = getSelectedModel();
   status.textContent = '⏳ Generating prediction...';
 
   setTimeout(() => {
-    const pred = generatePredictions(Date.now());
+    let pred;
+    switch (model) {
+      case 'v1':
+        pred = generateStrategicPredictions();
+        break;
+      case 'v3':
+        pred = v3(Date.now());
+        break;
+      case 'v5':
+        pred = v5(RESULTS, GROUPS);
+        break;
+      default:
+        pred = v4(Date.now());
+    }
 
     document.getElementById('pred-champion').textContent = pred.champion;
 
-    // Standings
     const grid = document.getElementById('pred-standings');
     grid.innerHTML = '';
     for (const [letter, standings] of Object.entries(pred.standings)) {
@@ -104,15 +154,14 @@ document.getElementById('run-prediction').addEventListener('click', () => {
       grid.appendChild(div);
     }
 
-    // Knockout
     renderPredBracket('pred-r32-grid', pred.r32.map(m => ({ ...m, homeScore: pred.r32results[m.id]?.homeScore, awayScore: pred.r32results[m.id]?.awayScore })));
     renderPredBracket('pred-r16-grid', pred.r16.map(m => ({ ...m, homeScore: pred.r16results[m.id]?.homeScore, awayScore: pred.r16results[m.id]?.awayScore })));
     renderPredBracket('pred-qf-grid', pred.qf.map(m => ({ ...m, homeScore: pred.qfresults[m.id]?.homeScore, awayScore: pred.qfresults[m.id]?.awayScore })));
     renderPredBracket('pred-sf-grid', pred.sf.map(m => ({ ...m, homeScore: pred.sfresults[m.id]?.homeScore, awayScore: pred.sfresults[m.id]?.awayScore })));
-    renderPredBracket('pred-final-grid', pred.finals);
+    renderPredBracket('pred-final-grid', getFinals(pred, model));
 
     document.getElementById('prediction-results').style.display = 'block';
-    status.textContent = '✅ Prediction generated!';
+    status.textContent = '✅ Prediction generated! (' + model + ')';
   }, 100);
 });
 </script>
