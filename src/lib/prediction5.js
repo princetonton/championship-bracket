@@ -79,8 +79,8 @@ export function estimateTeamStrengths(results, groups) {
 
     // Prior from FIFA ranking points (z-score → log-linear strength)
     const fifaZ = (team.pts - meanPts) / stdPts;
-    const attackPrior = 1 + 0.25 * fifaZ;
-    const defensePrior = 1 - 0.25 * fifaZ;
+    const attackPrior = 1 + 0.15 * fifaZ;
+    const defensePrior = 1 - 0.15 * fifaZ;
 
     let attack, defense, weight;
     if (n === 0) {

@@ -52,9 +52,13 @@ export const RESULTS = {
   // Group K
   K_01: { homeScore: 1, awayScore: 1 },
   K_02: { homeScore: 1, awayScore: 3 },
+  K_03: { homeScore: 5, awayScore: 0 },  // Portugal 5-0 Uzbekistan
+  K_04: { homeScore: 0, awayScore: 1 },  // Colombia 1-0 DR Congo
   // Group L
   L_01: { homeScore: 4, awayScore: 2 },
   L_02: { homeScore: 1, awayScore: 0 },
+  L_03: { homeScore: 0, awayScore: 0 },  // England 0-0 Ghana
+  L_04: { homeScore: 1, awayScore: 0 },  // Croatia 1-0 Panama
 };
 
 export function getResult(fixtureId) {

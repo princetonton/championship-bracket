@@ -130,6 +130,8 @@ const groupPanelsHtml = groupChunks.join('');
         <h2 class="section-title">⚽ Group Stage</h2>
         <button class="btn btn-gold btn-sm" id="prefill-btn">📋 Prefill with FIFA ranking</button>
         <button class="btn btn-sm" id="prefill-custom-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">📋 Prefill with own ranking</button>
+        <button class="btn btn-sm" id="load-results-btn" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border)">📋 Load actual MD1-2 results</button>
+        <button class="btn btn-gold btn-sm" id="prefill-md3-btn">🎯 Prefill MD3 (SRF optimal)</button>
         <a href="/rankings" class="btn btn-sm" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border);text-decoration:none">⚙️ Set rankings</a>
       </div>
       <p class="section-subtitle">Enter the scores for all 72 group matches.</p>
@@ -223,6 +225,8 @@ import { getBestThirdPlaced } from '../lib/qualification';
 import { generateRoundOf32, getRoundMatches } from '../lib/bracketLogic';
 import { generatePredictions, getTeamPts, deterministicPredictMatch, getTeamRankLookup, generateDeterministicPredictions, generateSeededPredictions } from '../lib/prediction4';
 import { loadProfile, saveProfile, loadCustomRankings } from '../lib/storage';
+import { RESULTS } from '../data/results';
+import { predictRemainingGroup } from '../lib/prediction5';
 
 let currentProfile = 'guest';
 let matchResults = {};
@@ -244,6 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initGuestName();
   initPrefillRoundButtons();
   initSeedRandom();
+  initLoadResults();
+  initPrefillMD3();
   // Handle ?profile=dani URL param (from baseline import redirect)
   const params = new URLSearchParams(window.location.search);
   if (params.get('profile') === 'dani') {
@@ -307,6 +313,9 @@ function switchProfile(profileId) {
     saveProfile(profileId, { matchResults, predictions: EMPTY_PREDS });
   }
 
+  // Pre-fill matchdays 1 & 2 with actual results
+  fillMatchdaysFromResults();
+
   // Restore guest name
   if (profileId === 'guest') {
     const savedName = localStorage.getItem('wc2026_guest_name');
@@ -342,6 +351,32 @@ function fillAllScores(results) {
     document.querySelectorAll(`.score-input[data-id="${id}"][data-side="away"]`).forEach(el => el.value = r.awayScore ?? '');
   }
   updateCalcButton();
+}
+
+function fillMatchdaysFromResults() {
+  const matchday12 = {};
+  for (const [id, r] of Object.entries(RESULTS)) {
+    const suffix = id.slice(2);
+    if (['_01','_02','_03','_04'].includes(suffix)) {
+      matchday12[id] = r;
+    }
+  }
+  fillAllScores(matchday12);
+}
+
+function fillMatchday3Predictions() {
+  // SRF-optimized predictions using Dixon-Coles model (prediction5.js)
+  // learns attack/defence from actual MD1-2 results
+  const rem = predictRemainingGroup(RESULTS, GROUPS);
+  for (const p of rem.predictions) {
+    document.querySelectorAll(`.score-input[data-id="${p.fixture}"][data-side="home"]`)
+      .forEach(el => el.value = p.homeScore);
+    document.querySelectorAll(`.score-input[data-id="${p.fixture}"][data-side="away"]`)
+      .forEach(el => el.value = p.awayScore);
+  }
+  updateCalcButton();
+  saveCurrentProfile();
+  document.getElementById('calc-status').textContent = '✅ Matchday 3 prefilled with v5 Dixon-Coles predictions!';
 }
 
 function saveCurrentProfile() {
@@ -932,6 +967,21 @@ function initPrefillRoundButtons() {
 function initSeedRandom() {
   document.getElementById('seed-random-btn').addEventListener('click', () => {
     document.getElementById('seed-input').value = String(Math.floor(Math.random() * 999999) + 1);
+  });
+}
+
+function initLoadResults() {
+  document.getElementById('load-results-btn').addEventListener('click', () => {
+    fillMatchdaysFromResults();
+    updateCalcButton();
+    saveCurrentProfile();
+    document.getElementById('calc-status').textContent = '✅ Matchday 1-2 results loaded!';
+  });
+}
+
+function initPrefillMD3() {
+  document.getElementById('prefill-md3-btn').addEventListener('click', () => {
+    fillMatchday3Predictions();
   });
 }
 
