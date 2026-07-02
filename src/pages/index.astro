@@ -130,8 +130,8 @@ const groupPanelsHtml = groupChunks.join('');
         <h2 class="section-title">⚽ Group Stage</h2>
         <button class="btn btn-gold btn-sm" id="prefill-btn">📋 Prefill with FIFA ranking</button>
         <button class="btn btn-sm" id="prefill-custom-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)">📋 Prefill with own ranking</button>
-        <button class="btn btn-sm" id="load-results-btn" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border)">📋 Load actual MD1-2 results</button>
-        <button class="btn btn-gold btn-sm" id="prefill-md3-btn">🎯 Prefill MD3 (SRF optimal)</button>
+        <button class="btn btn-sm" id="load-results-btn" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border)">📋 Load actual results (all groups + R32)</button>
+        <button class="btn btn-gold btn-sm" id="prefill-md3-btn" style="display:none">🎯 Prefill MD3 (obsolete)</button>
         <a href="/rankings" class="btn btn-sm" style="background:var(--surface2);color:var(--accent2);border:1px solid var(--border);text-decoration:none">⚙️ Set rankings</a>
       </div>
       <p class="section-subtitle">Enter the scores for all 72 group matches.</p>
@@ -354,14 +354,23 @@ function fillAllScores(results) {
 }
 
 function fillMatchdaysFromResults() {
-  const matchday12 = {};
+  const allGroupResults = {};
   for (const [id, r] of Object.entries(RESULTS)) {
-    const suffix = id.slice(2);
-    if (['_01','_02','_03','_04'].includes(suffix)) {
-      matchday12[id] = r;
+    // Only group stage keys have underscore + two digits (e.g. A_05)
+    // Skip knockout keys like R32_01
+    if (/^[A-Z]_\d{2}$/.test(id)) {
+      allGroupResults[id] = r;
     }
   }
-  fillAllScores(matchday12);
+  fillAllScores(allGroupResults);
+}
+
+function fillKoResults(results) {
+  for (const [id, r] of Object.entries(results)) {
+    if (!id.startsWith('R32_')) continue;
+    document.querySelectorAll(`.ko-score[data-match="${id}"][data-side="home"]`).forEach(el => el.value = r.homeScore ?? '');
+    document.querySelectorAll(`.ko-score[data-match="${id}"][data-side="away"]`).forEach(el => el.value = r.awayScore ?? '');
+  }
 }
 
 function fillMatchday3Predictions() {
@@ -975,7 +984,19 @@ function initLoadResults() {
     fillMatchdaysFromResults();
     updateCalcButton();
     saveCurrentProfile();
-    document.getElementById('calc-status').textContent = '✅ Matchday 1-2 results loaded!';
+
+    const results = getFullMatchResults();
+    if (allGroupMatchesComplete(results)) {
+      matchResults = results;
+      generateKnockout(results);
+      // Fill R32 scores now that knockout inputs exist
+      fillKoResults(RESULTS);
+      checkKoRoundComplete();
+      saveCurrentProfile();
+      document.getElementById('calc-status').textContent = '✅ All actual results loaded (groups + R32)!';
+    } else {
+      document.getElementById('calc-status').textContent = '✅ Group results loaded — fill remaining scores to unlock knockout';
+    }
   });
 }
 

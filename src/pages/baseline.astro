@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 import { GROUPS, GROUP_LETTERS } from '../data/groups';
 import { getGroupFixtures } from '../data/fixtures';
-import { baselineMatchResults, baselinePredictions, groupComments } from '../data/baseline';
+import { baselineMatchResults, baselinePredictions, knockoutPredictions, groupComments } from '../data/baseline';
 import { generateDeterministicPredictions } from '../lib/prediction4';
 
 const fifaPred = generateDeterministicPredictions('fifa');
@@ -127,6 +127,28 @@ const mdLabels = { '01': 'Matchday 1', '02': 'Matchday 1', '03': 'Matchday 2', '
             <div class="pred-value">{fifaPred.zeroZeroMatches}</div>
             <div class="pred-reason">Count of goalless draws across all 104 matches.</div>
           </div>
+        </div>
+      </section>
+
+      <!-- Knockout Predictions -->
+      <section class="section">
+        <h2 class="section-title">Knockout Predictions</h2>
+        <p class="section-subtitle">
+          Predictions for the knockout stage. Completed matches marked as actual, upcoming matches are predictions.
+        </p>
+        <div class="match-log">
+          {Object.entries(knockoutPredictions).map(([id, kp]) => {
+            const label = id.replace('_', ' ');
+            return <div class="log-entry">
+              <div class="log-scoreline">
+                <span class="log-matchday">{label}</span>
+                <span class="log-score"><strong>{kp.homeScore}-{kp.awayScore}</strong></span>
+                {kp.actual ? <span class="log-colon" style="color:var(--green)"> (actual)</span> : null}
+                {kp.note ? <span class="log-colon"> — {kp.note}</span> : null}
+              </div>
+              {kp.reasoning ? <div class="log-reason">{kp.reasoning}</div> : null}
+            </div>;
+          })}
         </div>
       </section>
 
@@ -388,6 +410,12 @@ const mdLabels = { '01': 'Matchday 1', '02': 'Matchday 1', '03': 'Matchday 2', '
     Object.entries(baselineMatchResults).map(([id, r]) => [id, {
       home: r.home, away: r.away, homeScore: r.homeScore, awayScore: r.awayScore,
       reasoning: r.reasoning,
+    }])
+  ),
+  knockoutPredictions: Object.fromEntries(
+    Object.entries(knockoutPredictions).map(([id, kp]) => [id, {
+      homeScore: kp.homeScore, awayScore: kp.awayScore, actual: kp.actual,
+      note: kp.note, reasoning: kp.reasoning,
     }])
   ),
   predictions: {

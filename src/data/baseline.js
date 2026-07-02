@@ -1,4 +1,5 @@
-// Baseline predictions with detailed reasoning
+// Baseline predictions — group stage now superseded by actual results
+// Knockout predictions below for remaining matches
 
 export const baselineMatchResults = {
   // Group A: Mexico (rank 14), South Africa (60), Korea Republic (25), Czechia (41)
@@ -173,23 +174,47 @@ export const baselineMatchResults = {
 export const baselinePredictions = {
   champion: 'France',
   championReasoning:
-    "France enters the tournament as the #1 ranked team in the world and the reigning World Cup champions with a squad that somehow improved since 2018. Their depth is extraordinary — they could field two completely different lineups that would both be contenders. Kylian Mbappé, arguably the world's best player, leads an attack that combines pace, power, and technical excellence. France's tactical flexibility under their manager allows them to adapt to any opponent, whether controlling possession or counter-attacking with devastating speed. Their defensive structure, anchored by world-class talents at every position, provides the stability needed for deep tournament runs. The combination of proven tournament winners, exceptional squad depth, tactical versatility, and the confidence that comes from being champions makes France the clear favorite to retain their title.",
+    "France remains the favorite after cruising through Group I with 9pts, 10 GF, and only 2 GA. Their 4-1 statement win over Norway in matchday 3 showed they're peaking at the right time. Mbappé is in devastating form and their squad depth is unmatched. Brazil, Spain, and Argentina are the main threats, but France's combination of tournament experience, tactical flexibility, and world-class talent across every position makes them the team to beat. The extended knockout format favors teams with depth, and France's bench could start for most nations.",
 
-  switzerlandRound: 'Round of 16',
+  switzerlandRound: 'Quarter-finals',
   switzerlandReasoning:
-    "Switzerland is ranked #19 in the world and consistently overperforms in major tournaments, reaching the knockout rounds in four of the last five World Cups and European Championships. Their tactical discipline, organized defense, and efficient counter-attacking make them a dangerous opponent for any team. In Group B, Switzerland should comfortably qualify behind Canada for one of the top two spots. However, their Round of 32 matchup would likely be against a group winner from another group — possibly a top-10 team — where Switzerland's limitations against elite opposition would be exposed. Switzerland can beat most teams ranked below them but lacks the individual quality to consistently overcome top-tier opponents in knockout matches. Their realistic ceiling is the Round of 16, where they would face a traditional powerhouse and likely exit with honor.",
+    "Switzerland won Group B with 7pts (W2 D1), displaying their trademark tournament efficiency. They face Algeria in R32 (a favorable matchup), then likely Portugal or Croatia in R16. Switzerland's tactical discipline and counter-attacking quality gives them a genuine path to the QF for the first time. Their organized defense (conceded only 4 in the group stage) and efficient attack (7 GF) make them dangerous in knockout football where one moment can decide a match. The QF would likely be against Spain or Argentina — a bridge too far — but reaching the last 8 would match their best-ever World Cup performance.",
 
-  switzerlandGoals: 4,
+  switzerlandGoals: 9,
   switzerlandGoalsReasoning:
-    "Switzerland's group stage matches should produce approximately 3 goals (2 against Qatar, 1 against Canada, with Bosnia being a tight affair). They would then need one more goal in their Round of 32 knockout match before elimination. Switzerland's playing style is controlled rather than explosive — they prioritize defensive organization and efficient counter-attacks over attacking dominance. Their matches typically feature 1-2 goals total, limiting their own scoring potential. Historical data from Switzerland's recent tournaments shows they average around 1 goal per game, so across 4 matches (3 group + 1 knockout) that gives approximately 4 goals. This estimate accounts for one multi-goal performance against weaker opposition in the group stage.",
+    "Switzerland scored 7 goals in the group stage (more than expected). With Algeria in R32 and potentially Portugal/Croatia in R16, they should add 2-3 more goals before likely elimination in the QF. Total: 7 (group) + 2 (R32) + 1 (R16) = 10, with R16 being tightly contested. Conservative estimate: 9 goals across 5 matches.",
 
-  topScorerGoals: 7,
+  topScorerGoals: 8,
   topScorerGoalsReasoning:
-    "In a 48-team World Cup with 104 matches, the golden boot winner typically scores 6-8 goals. The expanded tournament means more group stage matches against weaker opposition, giving elite strikers more opportunities to build their tally. The top contenders — Mbappé (France), Haaland (Norway — if Norway qualifies deep), or a Brazilian star — have the quality to score multiple hat-tricks in the group stage against lower-ranked opponents. The additional knockout round (Round of 32) compared to previous formats provides one extra match for goal-scoring. Seven goals is at the upper end of realistic projections but accounts for the expanded tournament format and the exceptional quality of the world's best forwards. A player like Mbappé, who scored 8 in the 2022 tournament (which had fewer matches), should benefit from the extra round.",
+    "The expanded 104-match tournament with an extra knockout round means the golden boot winner will likely need more goals than in previous editions. Ousmane Dembélé (3 goals in group stage for France), Vinicius Junior (Brazil), and Lautaro Martínez (Argentina) are early contenders. With quality mismatches in the group stage behind us, the remaining top scorers will be in the knockout rounds where matches are tighter. However, one dominant performance (hat-trick) in R32 could propel a player to the lead. 8 goals should be enough for the golden boot.",
 
-  zeroZeroMatches: 6,
+  zeroZeroMatches: 5,
   zeroZeroMatchesReasoning:
-    "With 104 matches in the expanded 48-team tournament, goalless draws become less frequent due to the quality disparity between top and bottom teams. However, knockout matches in the latter stages — particularly in the Round of 32 and Round of 16 — often become cagey affairs where both teams prioritize defensive solidity. Additionally, group stage matches between evenly-matched lower-ranked teams can produce stalemates. Historical World Cup data shows approximately 8-10% of matches end 0-0. With 104 matches, the expected number is 8-10, but the expanded format includes more mismatches (which rarely end 0-0) and more early knockout matches (which can). A conservative estimate of 6 goalless draws accounts for the lower likelihood in group stage mismatches while acknowledging that the additional knockout round provides more opportunities for tight defensive battles.",
+    "The group stage produced several goalless draws (Spain 0-0 Cabo Verde, Belgium 0-0 Iran, England 0-0 Ghana, Cabo Verde 0-0 Saudi Arabia, Paraguay 0-0 Australia). With the knockout rounds featuring more cagey, tactical affairs where extra time looms, a few more 0-0 draws are likely. However, the quality disparity in R32 mismatches reduces the probability. Expected total: 5-6 goalless draws from 104 matches.",
+};
+
+// ===== KNOCKOUT PREDICTIONS =====
+// R32 completed results (actual) + predictions for remaining matches
+export const knockoutPredictions = {
+  // Completed R32 matches (actual results)
+  R32_01: { homeScore: 0, awayScore: 1, actual: true, note: "South Africa 0-1 Canada" },
+  R32_02: { homeScore: 1, awayScore: 1, actual: true, note: "Germany 1-1 Paraguay (Paraguay 4-3 pens)" },
+  R32_03: { homeScore: 2, awayScore: 1, actual: true, note: "Brazil 2-1 Japan" },
+  R32_04: { homeScore: 1, awayScore: 1, actual: true, note: "Netherlands 1-1 Morocco (Morocco 3-2 pens)" },
+  R32_05: { homeScore: 3, awayScore: 0, actual: true, note: "France 3-0 Sweden" },
+  R32_06: { homeScore: 1, awayScore: 2, actual: true, note: "Ivory Coast 1-2 Norway" },
+  R32_07: { homeScore: 2, awayScore: 0, actual: true, note: "Mexico 2-0 Ecuador" },
+  R32_08: { homeScore: 2, awayScore: 1, actual: true, note: "England 2-1 DR Congo" },
+  R32_09: { homeScore: 2, awayScore: 0, actual: true, note: "USA 2-0 Bosnia" },
+  R32_10: { homeScore: 3, awayScore: 2, actual: true, note: "Belgium 3-2 Senegal" },
+
+  // R32 predictions (remaining matches)
+  R32_11: { homeScore: 2, awayScore: 0, reasoning: "Portugal (rank #5) vs Croatia (rank #11). Portugal has superior depth and attacking quality. Croatia's midfield can control possession but Portugal's counter-attacking speed and individual brilliance should decide it. Croatia's aging squad may struggle with Portugal's intensity over 90 minutes. Portugal's defensive organization under their current system limits Croatia's creative threats." },
+  R32_12: { homeScore: 3, awayScore: 0, reasoning: "Spain (rank #2) vs Austria (rank #24). Spain dominated Group H with 5 GF, 0 GA — 3 clean sheets. Austria conceded 7 goals in Group J (including 3 vs Algeria). Spain's possession control suffocates opponents and Austria lacks the pace to threaten on the counter. Strategic model: rank gap ≥ 20 → predict 3-0 to cover outcome + GD across common scorelines." },
+  R32_13: { homeScore: 2, awayScore: 0, reasoning: "Switzerland (rank #19) vs Algeria (rank #28). Switzerland topped Group B with 7pts, showing their trademark tournament efficiency. Algeria scraped through as 3rd place with 4pts and -2 GD. Switzerland's organized defense and counter-attacking precision should control this match. Algeria's individual flair can create moments but Switzerland's tactical discipline neutralizes threats efficiently." },
+  R32_14: { homeScore: 3, awayScore: 0, reasoning: "Argentina (rank #3) vs Cabo Verde (rank #69). Massive 66-rank gap. Argentina, the reigning champions, won Group J with 9pts and +7 GD. Cabo Verde finished 2nd in Group H with just 3pts and 0 GD — the weakest runner-up in the tournament. Argentina's technical quality, tactical sophistication, and tournament pedigree will overwhelm the debutants completely." },
+  R32_15: { homeScore: 2, awayScore: 0, reasoning: "Colombia (rank #13) vs Ghana (rank #74). Colombia won Group K with 7pts and conceded only 1 goal in the group stage. Ghana finished 3rd in Group L with 4pts and scraped through as one of the best third-placed teams. Colombia's South American technical quality and defensive solidity should control this match comfortably against a Ghana side that struggled to score." },
+  R32_16: { homeScore: 1, awayScore: 0, reasoning: "Australia (rank #27) vs Egypt (rank #29). Two evenly-matched teams separated by only 2 ranking positions. Australia finished 2nd in Group D with a disciplined defensive approach. Egypt finished 2nd in Group G with 5pts. This will be a tight, tactical contest with limited chances. Australia's physical resilience and set-piece threat give them a marginal edge in what could be decided by a single moment." },
 };
 
 export const groupComments = {

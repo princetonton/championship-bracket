@@ -4,9 +4,16 @@ import { GROUPS, GROUP_LETTERS } from '../data/groups';
 import { getGroupFixtures } from '../data/fixtures';
 import { FIXTURE_SCHEDULE } from '../data/schedule';
 import { RESULTS } from '../data/results';
+import { R16_MATCHUPS, QF_MATCHUPS, SF_MATCHUPS, FINAL_MATCHUPS } from '../data/bracket';
 import { getModelComparison, predictFullTournament, predictRemainingGroup } from '../lib/prediction5';
 import { generatePredictions as v3 } from '../lib/prediction';
 import { generatePredictions as v4 } from '../lib/prediction4';
+import { getTeamRankLookup, deterministicPredictMatch } from '../lib/prediction';
+import { predictMatchScore4 } from '../lib/prediction4';
+import { generateRoundOf32 } from '../lib/bracketLogic';
+import { getBestThirdPlaced } from '../lib/qualification';
+import { computeGroupStandings } from '../lib/standings';
+import { knockoutPredictions } from '../data/baseline';
 
 const cmp = getModelComparison(GROUPS, RESULTS);
 const full = predictFullTournament(RESULTS, GROUPS);
@@ -14,6 +21,212 @@ const rem = predictRemainingGroup(RESULTS, GROUPS);
 
 const v3pred = v3(42);
 const v4pred = v4(42);
+
+// Enrich RESULTS with home/away indices for standings computation
+const enriched = {};
+for (const letter of GROUP_LETTERS) {
+  const fixtures = getGroupFixtures(letter);
+  for (const f of fixtures) {
+    const r = RESULTS[f.id];
+    if (r) enriched[f.id] = { ...r, home: f.homeIdx, away: f.awayIdx };
+  }
+}
+
+// --- KO scoring functions (no host advantage in knockout) ---
+function v1koScore(homeRank, awayRank) {
+  const gap = homeRank - awayRank, absGap = Math.abs(gap), hf = gap < 0;
+  if (absGap >= 20) return hf ? { h: 3, a: 0 } : { h: 0, a: 3 };
+  if (absGap >= 8) return hf ? { h: 2, a: 0 } : { h: 0, a: 2 };
+  if (absGap >= 3) return hf ? { h: 2, a: 1 } : { h: 1, a: 2 };
+  if (absGap >= 1) return hf ? { h: 1, a: 0 } : { h: 0, a: 1 };
+  return { h: 1, a: 1 };
+}
+function v2koScore(homeRank, awayRank) {
+  const gap = homeRank - awayRank, absGap = Math.abs(gap), hf = gap < 0;
+  if (absGap >= 60) return hf ? { h: 5, a: 0 } : { h: 0, a: 5 };
+  if (absGap >= 50) return hf ? { h: 4, a: 0 } : { h: 0, a: 4 };
+  if (absGap >= 20) return hf ? { h: 3, a: 0 } : { h: 0, a: 3 };
+  if (absGap >= 8) return hf ? { h: 2, a: 0 } : { h: 0, a: 2 };
+  if (absGap >= 3) return hf ? { h: 2, a: 1 } : { h: 1, a: 2 };
+  if (absGap >= 1) return hf ? { h: 1, a: 0 } : { h: 0, a: 1 };
+  return { h: 1, a: 1 };
+}
+
+function getRank(teamName) {
+  for (const l of GROUP_LETTERS) {
+    const t = GROUPS[l].teams.find(tm => tm.name === teamName);
+    if (t) return t.rank;
+  }
+  return 50;
+}
+
+function findInResults(results, id) {
+  for (const k of Object.keys(results)) {
+    if (k.startsWith(id)) return results[k];
+  }
+  return null;
+}
+
+// --- Bracket propagation for a model ---
+// Takes a function `scoreFn(homeName, awayName) -> {h, a}` returns full knockout tree
+function propagateBracket(scoreFn) {
+  const standings = {};
+  for (const l of GROUP_LETTERS) standings[l] = computeGroupStandings(l, enriched);
+  const { qualified } = getBestThirdPlaced(enriched);
+  const allQualified = new Set(qualified.map(t => t.name));
+
+  // Check if team advanced from group
+  function advanced(teamName) {
+    for (const l of GROUP_LETTERS) {
+      const st = standings[l];
+      const pos = st.findIndex(t => t.name === teamName);
+      if (pos >= 0) return pos <= 1 || (pos === 2 && allQualified.has(teamName));
+    }
+    return false;
+  }
+
+  const r32pairings = generateRoundOf32(enriched);
+
+  function simRound(matchDefs, prevResults) {
+    const results = {};
+    const matches = matchDefs.map(m => {
+      const hp = prevResults[m.prev[0]];
+      const ap = prevResults[m.prev[1]];
+      let hn = 'TBD', an = 'TBD';
+      if (hp) hn = m.useLosers ? (hp.homeScore > hp.awayScore ? hp.awayName : hp.homeName) : (hp.homeScore > hp.awayScore ? hp.homeName : hp.awayName);
+      if (ap) an = m.useLosers ? (ap.homeScore > ap.awayScore ? ap.awayName : ap.homeName) : (ap.homeScore > ap.awayScore ? ap.homeName : ap.awayName);
+      // Score the match if both teams known
+      if (hn !== 'TBD' && an !== 'TBD') {
+        const s = scoreFn(hn, an);
+        results[m.id] = { id: m.id, label: m.label, homeName: hn, awayName: an, homeScore: s.h, awayScore: s.a };
+      }
+      return { id: m.id, label: m.label, homeName: hn, awayName: an };
+    });
+    return { matches, results };
+  }
+
+  // R32
+  const r32results = {};
+  for (const m of r32pairings) {
+    if (m.homeName === 'TBD' || m.awayName === 'TBD') continue;
+    if (!advanced(m.homeName) || !advanced(m.awayName)) continue;
+    const s = scoreFn(m.homeName, m.awayName);
+    r32results[m.id] = { ...m, homeScore: s.h, awayScore: s.a };
+  }
+
+  const prevKo = { ...enriched, ...r32results };
+
+  // R16
+  const r16 = simRound(R16_MATCHUPS.map(m => ({ ...m, prev: m.prev, useLosers: false })), prevKo);
+  Object.assign(prevKo, r16.results);
+
+  // QF
+  const qf = simRound(QF_MATCHUPS.map(m => ({ ...m, prev: m.prev, useLosers: false })), prevKo);
+  Object.assign(prevKo, qf.results);
+
+  // SF
+  const sf = simRound(SF_MATCHUPS.map(m => ({ ...m, prev: m.prev, useLosers: false })), prevKo);
+  Object.assign(prevKo, sf.results);
+
+  // Finals
+  const finals = simRound(FINAL_MATCHUPS, prevKo);
+  const finalMatch = finals.results['FINAL'];
+  const thirdMatch = finals.results['THIRD'];
+  const champion = finalMatch ? (finalMatch.homeScore > finalMatch.awayScore ? finalMatch.homeName : finalMatch.awayName) : 'TBD';
+
+  return { r32: r32pairings, r32results, r16: r16.matches, r16results: r16.results, qf: qf.matches, qfresults: qf.results, sf: sf.matches, sfresults: sf.results, finals: finals.matches, finalResults: finals.results, champion };
+}
+
+// --- Generate all model knockout predictions ---
+const rankLookup = getTeamRankLookup('fifa', null);
+
+// v1 & v2: pure rank-based
+const v1ko = propagateBracket((hn, an) => v1koScore(getRank(hn), getRank(an)));
+const v2ko = propagateBracket((hn, an) => v2koScore(getRank(hn), getRank(an)));
+
+// v3: deterministic with jitter=0
+const v3ko = propagateBracket((hn, an) => {
+  const rh = rankLookup[hn] || 50;
+  const ra = rankLookup[an] || 50;
+  const s = deterministicPredictMatch(rh, ra, null);
+  return { h: s.homeScore, a: s.awayScore };
+});
+
+// v4: heuristic (draw-rule + Poisson)
+const v4ko = propagateBracket((hn, an) => {
+  const rh = rankLookup[hn] || 50;
+  const ra = rankLookup[an] || 50;
+  const ptsH = GROUPS[Object.keys(GROUPS).find(l => GROUPS[l].teams.some(t => t.name === hn))]?.teams.find(t => t.name === hn)?.pts || 1500;
+  const ptsA = GROUPS[Object.keys(GROUPS).find(l => GROUPS[l].teams.some(t => t.name === an))]?.teams.find(t => t.name === an)?.pts || 1500;
+  const s = predictMatchScore4(rh, ra, ptsH, ptsA, true, hn);
+  return { h: s.homeScore, a: s.awayScore };
+});
+
+// v5: from predictFullTournament (already have it)
+const v5ko = full;
+
+// baseline: from data file (only R32 keys)
+const baselineKo = knockoutPredictions || {};
+
+// --- Build R32 comparison table ---
+const r32pairings = generateRoundOf32(enriched);
+const koModelKeys = ['v1', 'v2', 'v3', 'v4', 'v5', 'baseline'];
+const koModelNames = ['v1 Det', 'v2 Ext', 'v3 Prob', 'v4 Heur', 'v5 DC', 'Baseline'];
+
+function getKoScore(modelKey, matchId) {
+  if (modelKey === 'v1') return v1ko.r32results[matchId];
+  if (modelKey === 'v2') return v2ko.r32results[matchId];
+  if (modelKey === 'v3') return v3ko.r32results[matchId];
+  if (modelKey === 'v4') return v4ko.r32results[matchId];
+  if (modelKey === 'v5') return full.r32results[matchId];
+  if (modelKey === 'baseline') return baselineKo[matchId];
+  return null;
+}
+
+function koPredCell(modelKey, matchId, actual) {
+  const r = getKoScore(modelKey, matchId);
+  if (!r || r.homeScore == null) return { text: '\u2014', cls: 'pred-na' };
+  const text = `${r.homeScore}-${r.awayScore}`;
+  if (!actual) return { text, cls: 'pred-future' };
+  const sameOutcome = Math.sign(r.homeScore - r.awayScore) === Math.sign(actual.homeScore - actual.awayScore);
+  const sameExact = r.homeScore === actual.homeScore && r.awayScore === actual.awayScore;
+  const sameGD = (r.homeScore - r.awayScore) === (actual.homeScore - actual.awayScore);
+  let cls = 'pred-wrong';
+  if (sameExact) cls = 'pred-exact';
+  else if (sameOutcome && sameGD) cls = 'pred-gd';
+  else if (sameOutcome) cls = 'pred-outcome';
+  return { text, cls };
+}
+
+const r32CompRows = r32pairings.map(m => {
+  const actual = RESULTS[m.id] || null;
+  const cols = koModelKeys.map(k => koPredCell(k, m.id, actual));
+  return { id: m.id, label: m.label, homeName: m.homeName, awayName: m.awayName, actual, cols };
+});
+
+// --- Build deeper round comparison per model ---
+const koRoundDefs = [
+  { key: 'r16', label: 'Round of 16', matchups: R16_MATCHUPS },
+  { key: 'qf', label: 'Quarter-finals', matchups: QF_MATCHUPS },
+  { key: 'sf', label: 'Semi-finals', matchups: SF_MATCHUPS },
+];
+
+function getModelMatches(modelKey, roundKey) {
+  const data = { v1: v1ko, v2: v2ko, v3: v3ko, v4: v4ko, v5: v5ko, baseline: { r16results: {}, qfresults: {}, sfresults: {}, finalResults: {} } };
+  const d = data[modelKey];
+  if (!d) return {};
+  if (roundKey === 'r16') return d.r16results || {};
+  if (roundKey === 'qf') return d.qfresults || {};
+  if (roundKey === 'sf') return d.sfresults || {};
+  return {};
+}
+
+// Champion/third per model
+const modelChampions = {};
+for (const mk of ['v1', 'v2', 'v3', 'v4', 'v5']) {
+  const data = { v1: v1ko, v2: v2ko, v3: v3ko, v4: v4ko, v5: v5ko };
+  modelChampions[mk] = data[mk]?.champion || 'TBD';
+}
 
 function v1score(group, f) {
   const home = group.teams[f.homeIdx], away = group.teams[f.awayIdx];
@@ -205,6 +418,141 @@ const koRounds = [
         </div>
       </section>
 
+      <!-- Knockout Model Comparison -->
+      <section class="section">
+        <h2 class="section-title">Knockout Model Comparison <span class="badge">6 models</span></h2>
+        <p class="section-subtitle">
+          All models use actual group standings for R32 pairings. Color coding: 
+          <span class="badge-exact">exact</span>
+          <span class="badge-gd">GD</span>
+          <span class="badge-outcome">outcome</span>
+          <span class="badge-wrong">wrong</span>
+          for completed matches; dim = prediction for future matches.
+        </p>
+
+        <h3 style="font-size:1rem;margin:16px 0 8px">Round of 32</h3>
+        <div class="ko-comp-wrap">
+          <table class="data-table ko-comp-table">
+            <thead>
+              <tr>
+                <th></th><th>Home</th><th></th><th></th><th>Away</th>
+                <th class="col-v1">v1</th><th class="col-v2">v2</th><th class="col-v3">v3</th><th class="col-v4">v4</th><th class="col-v5">v5</th><th class="col-baseline">BL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r32CompRows.map(r => {
+                const actualStr = r.actual
+                  ? <><strong>{r.actual.homeScore}-{r.actual.awayScore}</strong></>
+                  : <span class="date-badge">upcoming</span>;
+                return (
+                  <tr class={r.actual ? '' : 'row-future'}>
+                    <td class="mono">{r.label || r.id}</td>
+                    <td class="tright">{r.homeName}</td>
+                    <td class="score-cell">{actualStr}</td>
+                    <td class="colon-cell">:</td>
+                    <td>{r.awayName}</td>
+                    {r.cols.map(c => <td class={"pred-cell " + c.cls}>{c.text}</td>)}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {koRoundDefs.map(rd => {
+          // Collect per-model results for this round
+          const modelRoundMatches = {};
+          for (const mk of koModelKeys) {
+            const mresults = getModelMatches(mk, rd.key);
+            modelRoundMatches[mk] = mresults;
+          }
+          // Get all unique match IDs from any model
+          const allIds = new Set();
+          for (const mk of koModelKeys) {
+            for (const id of Object.keys(modelRoundMatches[mk])) allIds.add(id);
+          }
+          const matchList = rd.matchups.filter(m => allIds.has(m.id));
+          return (
+            <div style="margin-top:20px">
+              <h3 style="font-size:1rem;margin-bottom:8px">{rd.label}</h3>
+              <div class="ko-comp-wrap">
+                <table class="data-table ko-comp-table">
+                  <thead>
+                    <tr>
+                      <th>Match</th>
+                      <th class="col-v1">v1</th>
+                      <th class="col-v2">v2</th>
+                      <th class="col-v3">v3</th>
+                      <th class="col-v4">v4</th>
+                      <th class="col-v5">v5</th>
+                      <th class="col-baseline">BL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchList.map(m => {
+                      const cells = koModelKeys.map(mk => {
+                        const r = modelRoundMatches[mk][m.id];
+                        if (!r || r.homeScore == null) return { text: '\u2014', cls: 'pred-na' };
+                        const winner = r.homeScore > r.awayScore ? r.homeName : (r.awayScore > r.homeScore ? r.awayName : 'Draw');
+                        return { text: `${r.homeName} ${r.homeScore}-${r.awayScore} ${r.awayName}`, cls: 'pred-future', winner };
+                      });
+                      return (
+                        <tr>
+                          <td class="mono">{m.label || m.id}</td>
+                          {cells.map(c => <td class={"pred-cell ko-cell " + c.cls}>{c.text}</td>)}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+
+        <div style="margin-top:20px">
+          <h3 style="font-size:1rem;margin-bottom:8px">Finals &amp; Champion</h3>
+          <div class="ko-comp-wrap">
+            <table class="data-table ko-comp-table">
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th class="col-v1">v1</th>
+                  <th class="col-v2">v2</th>
+                  <th class="col-v3">v3</th>
+                  <th class="col-v4">v4</th>
+                  <th class="col-v5">v5</th>
+                  <th class="col-baseline">BL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const finalsData = { v1: v1ko.finalResults, v2: v2ko.finalResults, v3: v3ko.finalResults, v4: v4ko.finalResults, v5: v5ko.finalResults, baseline: {} };
+                  const rows = [];
+                  for (const matchId of ['THIRD', 'FINAL']) {
+                    const label = matchId === 'THIRD' ? 'Third Place' : 'Final';
+                    const cells = koModelKeys.map(mk => {
+                      const fr = finalsData[mk];
+                      const r = fr?.[matchId];
+                      if (!r || r.homeScore == null) return { text: '\u2014', cls: 'pred-na' };
+                      return { text: `${r.homeName} ${r.homeScore}-${r.awayScore} ${r.awayName}`, cls: 'pred-future' };
+                    });
+                    rows.push(<tr><td class="mono">{label}</td>{cells.map(c => <td class={"pred-cell ko-cell " + c.cls}>{c.text}</td>)}</tr>);
+                  }
+                  // Champion row
+                  const champCells = koModelKeys.map(mk => {
+                    const ch = modelChampions[mk];
+                    return { text: ch || '\u2014', cls: ch && ch !== 'TBD' ? 'pred-future' : 'pred-na' };
+                  });
+                  rows.push(<tr style="border-top:2px solid var(--border)"><td class="mono"><strong>Champion</strong></td>{champCells.map(c => <td class={"pred-cell ko-cell " + c.cls}><strong>{c.text}</strong></td>)}</tr>);
+                  return rows;
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="section">
         <h2 class="section-title">Knockout Prediction <span class="badge">v5 Dixon-Coles</span></h2>
         <div class="prediction-cards">
@@ -259,11 +607,12 @@ const koRounds = [
       <section class="section">
         <h2 class="section-title">Methodology</h2>
         <div style="font-size:0.88rem;color:var(--textDim);line-height:1.7">
-          <p><strong>v1 Deterministic:</strong> Rank-gap thresholds (host rank -3). Gap \u2265 20 \u2192 3-0, \u2265 8 \u2192 2-0, \u2265 3 \u2192 2-1, \u2265 1 \u2192 1-0, else 1-1.</p>
+          <p><strong>v1 Deterministic:</strong> Rank-gap thresholds (host rank -3 in group stage, pure rank in KO). Gap \u2265 20 \u2192 3-0, \u2265 8 \u2192 2-0, \u2265 3 \u2192 2-1, \u2265 1 \u2192 1-0, else 1-1.</p>
           <p><strong>v2 Extended:</strong> Same logic, extended thresholds up to 5-0 for gap \u2265 60.</p>
-          <p><strong>v3 Probabilistic:</strong> Seeded RNG simulation; match outcomes drawn from rank-weighted probabilities.</p>
-          <p><strong>v4 Heuristic:</strong> Poisson-based with FIFA pts as strength. Home advantage 1.2\u00d7 for hosts.</p>
+          <p><strong>v3 Probabilistic:</strong> Seeded RNG simulation; match outcomes drawn from rank-weighted probabilities. Deterministic variant used for KO.</p>
+          <p><strong>v4 Heuristic:</strong> Poisson-based with FIFA pts as strength. Draw rule: |gap| \u2264 5 \u2192 1-1 in group stage.</p>
           <p><strong>v5 Dixon-Coles:</strong> Attack/defense per team. FIFA prior + tournament evidence (weight = min(0.85, played \u00d7 0.2)). SRF-optimized score selection. Host advantage 1.2\u00d7 for Mexico/USA/Canada in group stage.</p>
+          <p><strong>Baseline:</strong> Hand-crafted predictions with reasoning for each match.</p>
         </div>
       </section>
     </div>
@@ -286,6 +635,10 @@ const koRounds = [
     background: var(--accent); color: white; font-size: 0.7rem; padding: 2px 8px;
     border-radius: 4px; vertical-align: middle; font-weight: 600; letter-spacing: 0.5px;
   }
+  .badge-exact { background: rgba(34,197,94,0.2); color: #4ade80; padding: 1px 6px; border-radius: 3px; font-size: 0.72rem; font-weight: 600; }
+  .badge-gd { background: rgba(234,179,8,0.15); color: #facc15; padding: 1px 6px; border-radius: 3px; font-size: 0.72rem; font-weight: 600; }
+  .badge-outcome { background: rgba(59,130,246,0.12); color: #60a5fa; padding: 1px 6px; border-radius: 3px; font-size: 0.72rem; font-weight: 600; }
+  .badge-wrong { color: var(--textDim); padding: 1px 6px; border-radius: 3px; font-size: 0.72rem; font-weight: 600; }
 
   .comparison-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 16px 0;
@@ -316,6 +669,15 @@ const koRounds = [
   .pred-wrong { color: var(--textDim); }
   .pred-na { color: rgba(255,255,255,0.12); }
   .pred-future { color: var(--textDim); font-weight: 400; }
+
+  .ko-comp-wrap { margin-top: 8px; overflow-x: auto; }
+  .ko-comp-table { font-size: 0.78rem; min-width: 800px; }
+  .ko-comp-table th { font-size: 0.68rem; padding: 5px 6px; text-align: center; white-space: nowrap; }
+  .ko-comp-table th.col-v5 { color: var(--accent); }
+  .ko-comp-table td { padding: 3px 6px; text-align: center; white-space: nowrap; }
+  .ko-comp-table .tright { text-align: right; }
+  .ko-comp-table .mono { font-family: monospace; font-size: 0.72rem; color: var(--textDim); }
+  .ko-cell { font-size: 0.68rem !important; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
 
   .data-table { width: 100%; border-collapse: collapse; }
   .data-table th {
