@@ -35,9 +35,9 @@ export const THIRD_PLACE_SLOTS = {
 
 // Round of 16 matchups (which R32 matches feed into which R16 match)
 export const R16_MATCHUPS = [
-  { id: 'R16_01', label: 'R16-1', prev: ['R32_01', 'R32_03'] },
+  { id: 'R16_01', label: 'R16-1', prev: ['R32_01', 'R32_04'] },
   { id: 'R16_02', label: 'R16-2', prev: ['R32_02', 'R32_05'] },
-  { id: 'R16_03', label: 'R16-3', prev: ['R32_04', 'R32_06'] },
+  { id: 'R16_03', label: 'R16-3', prev: ['R32_03', 'R32_06'] },
   { id: 'R16_04', label: 'R16-4', prev: ['R32_07', 'R32_08'] },
   { id: 'R16_05', label: 'R16-5', prev: ['R32_11', 'R32_12'] },
   { id: 'R16_06', label: 'R16-6', prev: ['R32_09', 'R32_10'] },

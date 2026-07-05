@@ -107,6 +107,12 @@ export const RESULTS = {
   R32_08: { homeScore: 2, awayScore: 1 },  // England 2-1 DR Congo
   R32_09: { homeScore: 2, awayScore: 0 },  // USA 2-0 Bosnia and Herzegovina
   R32_10: { homeScore: 3, awayScore: 2 },  // Belgium 3-2 Senegal
+  R32_11: { homeScore: 2, awayScore: 1 },  // Portugal 2-1 Croatia
+  R32_12: { homeScore: 3, awayScore: 0 },  // Spain 3-0 Austria
+  R32_13: { homeScore: 2, awayScore: 0 },  // Switzerland 2-0 Algeria
+  R32_14: { homeScore: 3, awayScore: 2 },  // Argentina 3-2 Cabo Verde (AET)
+  R32_15: { homeScore: 1, awayScore: 0 },  // Colombia 1-0 Ghana
+  R32_16: { homeScore: 1, awayScore: 1 },  // Australia 1-1 Egypt (Egypt 4-2 pens)
 };
 
 export function getResult(fixtureId) {

@@ -178,23 +178,23 @@ export const baselinePredictions = {
 
   switzerlandRound: 'Quarter-finals',
   switzerlandReasoning:
-    "Switzerland won Group B with 7pts (W2 D1), displaying their trademark tournament efficiency. They face Algeria in R32 (a favorable matchup), then likely Portugal or Croatia in R16. Switzerland's tactical discipline and counter-attacking quality gives them a genuine path to the QF for the first time. Their organized defense (conceded only 4 in the group stage) and efficient attack (7 GF) make them dangerous in knockout football where one moment can decide a match. The QF would likely be against Spain or Argentina — a bridge too far — but reaching the last 8 would match their best-ever World Cup performance.",
+    "Switzerland won Group B with 7pts, then beat Algeria 2-0 in R32 — their first World Cup knockout win in 88 years. They now face Colombia in the R16 in Vancouver. Switzerland's organized defense (conceded only 4 in 4 matches) and efficient counter-attacking give them a genuine path to the QF. Colombia will be a step up, but Switzerland's tournament discipline makes them dangerous. The QF would likely be against Argentina or Egypt — a bridge too far — but the last 8 would match their best-ever World Cup performance.",
 
-  switzerlandGoals: 9,
+  switzerlandGoals: 10,
   switzerlandGoalsReasoning:
-    "Switzerland scored 7 goals in the group stage (more than expected). With Algeria in R32 and potentially Portugal/Croatia in R16, they should add 2-3 more goals before likely elimination in the QF. Total: 7 (group) + 2 (R32) + 1 (R16) = 10, with R16 being tightly contested. Conservative estimate: 9 goals across 5 matches.",
+    "Switzerland scored 7 goals in the group stage plus 2 vs Algeria in R32 = 9 so far. With Colombia in R16, they should add at least 1 more before likely elimination. Total: 9 (group+R32) + 1 (R16) = 10.",
 
   topScorerGoals: 8,
   topScorerGoalsReasoning:
-    "The expanded 104-match tournament with an extra knockout round means the golden boot winner will likely need more goals than in previous editions. Ousmane Dembélé (3 goals in group stage for France), Vinicius Junior (Brazil), and Lautaro Martínez (Argentina) are early contenders. With quality mismatches in the group stage behind us, the remaining top scorers will be in the knockout rounds where matches are tighter. However, one dominant performance (hat-trick) in R32 could propel a player to the lead. 8 goals should be enough for the golden boot.",
+    "Haaland leads with 5 goals (all from open play), followed by Vinicius Jr (4), Mbappé/Dembélé/Oyarzabal (3). The expanded 104-match tournament means the golden boot winner may need 8+ goals. With knockout matches getting tighter, one dominant performance (haul) in R16 or QF could settle it.",
 
   zeroZeroMatches: 5,
   zeroZeroMatchesReasoning:
     "The group stage produced several goalless draws (Spain 0-0 Cabo Verde, Belgium 0-0 Iran, England 0-0 Ghana, Cabo Verde 0-0 Saudi Arabia, Paraguay 0-0 Australia). With the knockout rounds featuring more cagey, tactical affairs where extra time looms, a few more 0-0 draws are likely. However, the quality disparity in R32 mismatches reduces the probability. Expected total: 5-6 goalless draws from 104 matches.",
 };
 
-// ===== KNOCKOUT PREDICTIONS =====
-// R32 completed results (actual) + predictions for remaining matches
+// ===== KNOCKOUT RESULTS & PREDICTIONS =====
+// All R32 results confirmed; R16 results (actual) + predictions for remaining
 export const knockoutPredictions = {
   // Completed R32 matches (actual results)
   R32_01: { homeScore: 0, awayScore: 1, actual: true, note: "South Africa 0-1 Canada" },
@@ -208,13 +208,21 @@ export const knockoutPredictions = {
   R32_09: { homeScore: 2, awayScore: 0, actual: true, note: "USA 2-0 Bosnia" },
   R32_10: { homeScore: 3, awayScore: 2, actual: true, note: "Belgium 3-2 Senegal" },
 
-  // R32 predictions (remaining matches)
-  R32_11: { homeScore: 2, awayScore: 0, reasoning: "Portugal (rank #5) vs Croatia (rank #11). Portugal has superior depth and attacking quality. Croatia's midfield can control possession but Portugal's counter-attacking speed and individual brilliance should decide it. Croatia's aging squad may struggle with Portugal's intensity over 90 minutes. Portugal's defensive organization under their current system limits Croatia's creative threats." },
-  R32_12: { homeScore: 3, awayScore: 0, reasoning: "Spain (rank #2) vs Austria (rank #24). Spain dominated Group H with 5 GF, 0 GA — 3 clean sheets. Austria conceded 7 goals in Group J (including 3 vs Algeria). Spain's possession control suffocates opponents and Austria lacks the pace to threaten on the counter. Strategic model: rank gap ≥ 20 → predict 3-0 to cover outcome + GD across common scorelines." },
-  R32_13: { homeScore: 2, awayScore: 0, reasoning: "Switzerland (rank #19) vs Algeria (rank #28). Switzerland topped Group B with 7pts, showing their trademark tournament efficiency. Algeria scraped through as 3rd place with 4pts and -2 GD. Switzerland's organized defense and counter-attacking precision should control this match. Algeria's individual flair can create moments but Switzerland's tactical discipline neutralizes threats efficiently." },
-  R32_14: { homeScore: 3, awayScore: 0, reasoning: "Argentina (rank #3) vs Cabo Verde (rank #69). Massive 66-rank gap. Argentina, the reigning champions, won Group J with 9pts and +7 GD. Cabo Verde finished 2nd in Group H with just 3pts and 0 GD — the weakest runner-up in the tournament. Argentina's technical quality, tactical sophistication, and tournament pedigree will overwhelm the debutants completely." },
-  R32_15: { homeScore: 2, awayScore: 0, reasoning: "Colombia (rank #13) vs Ghana (rank #74). Colombia won Group K with 7pts and conceded only 1 goal in the group stage. Ghana finished 3rd in Group L with 4pts and scraped through as one of the best third-placed teams. Colombia's South American technical quality and defensive solidity should control this match comfortably against a Ghana side that struggled to score." },
-  R32_16: { homeScore: 1, awayScore: 0, reasoning: "Australia (rank #27) vs Egypt (rank #29). Two evenly-matched teams separated by only 2 ranking positions. Australia finished 2nd in Group D with a disciplined defensive approach. Egypt finished 2nd in Group G with 5pts. This will be a tight, tactical contest with limited chances. Australia's physical resilience and set-piece threat give them a marginal edge in what could be decided by a single moment." },
+  // R32 completed results (actual)
+  R32_11: { homeScore: 2, awayScore: 1, actual: true, note: "Portugal 2-1 Croatia (Ronaldo pen, Ramos 94' winner)" },
+  R32_12: { homeScore: 3, awayScore: 0, actual: true, note: "Spain 3-0 Austria (Oyarzabal 2, Porro)" },
+  R32_13: { homeScore: 2, awayScore: 0, actual: true, note: "Switzerland 2-0 Algeria (Embolo, Ndoye)" },
+  R32_14: { homeScore: 3, awayScore: 2, actual: true, note: "Argentina 3-2 Cabo Verde (AET)" },
+  R32_15: { homeScore: 1, awayScore: 0, actual: true, note: "Colombia 1-0 Ghana (Arias)" },
+  R32_16: { homeScore: 1, awayScore: 1, actual: true, note: "Australia 1-1 Egypt (Egypt 4-2 pens)" },
+
+  // R16 results (actual)
+  R16_01: { homeScore: 0, awayScore: 3, actual: true, note: "Canada 0-3 Morocco (Ounahi 2, Rahimi)" },
+  R16_02: { homeScore: 0, awayScore: 1, actual: true, note: "Paraguay 0-1 France (penalty)" },
+
+  // R16 predictions (remaining matches)
+  R16_03: { homeScore: 2, awayScore: 1, reasoning: "Brazil (rank #6) vs Norway (rank #31). Brazil have been solid defensively (1 GA in 4 matches) and possess superior depth. Norway rely on Haaland's form (5 goals) and Ødegaard's creativity. Brazil's experience and quality should prevail in a tight contest." },
+  R16_04: { homeScore: 2, awayScore: 1, reasoning: "Mexico (rank #14) vs England (rank #4). Mexico has home advantage at Estadio Azteca but England's superior quality and tournament pedigree should see them through. England's attack has been prolific while Mexico relies on defensive organization." },
 };
 
 export const groupComments = {
